@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>INFINITY NEXUS // Cyber Investigation Simulation — Round 1</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Subtle CRT scanline effect (Toggleable in top bar) -->
+  <div class="crt-overlay"></div>
+
+  <div class="app-container">
+
+    <!-- ====================================================================
+         SCREEN 1: LOGIN / TEAM ENTRY
+         ==================================================================== -->
+    <div id="screen-login" class="screen active">
+      <div class="login-box">
+        <div class="nexus-logo-wrap">
+          <svg viewBox="0 0 100 100" class="nexus-symbol">
+            <polygon points="50,5 90,25 90,75 50,95 10,75 10,25" fill="none" stroke="#9B5CFF" stroke-width="2.5" stroke-dasharray="4,2"/>
+            <polygon points="50,15 80,32 80,68 50,85 20,68 20,32" fill="none" stroke="#3EA6FF" stroke-width="2"/>
+            <circle cx="50" cy="50" r="14" fill="rgba(155, 92, 255, 0.2)" stroke="#FFD43B" stroke-width="2"/>
+            <circle cx="50" cy="50" r="6" fill="#F4F7FA"/>
+          </svg>
+        </div>
+
+        <h1 class="login-title">INFINITY NEXUS</h1>
+        <div class="login-sub">INVESTIGATION TERMINAL // MULTIVERSE COLLAPSE</div>
+
+        <form id="login-form" class="login-form">
+          <div class="form-group">
+            <label class="form-label" for="login-team-id">TEAM IDENTIFIER</label>
+            <input type="text" id="login-team-id" class="form-input" placeholder="e.g. TEAM 07" value="TEAM 07" required autocomplete="off">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="login-access-code">SECURITY ACCESS CODE</label>
+            <input type="password" id="login-access-code" class="form-input" placeholder="••••••••" value="NEXUS-2026" required autocomplete="off">
+          </div>
+
+          <button type="submit" class="btn btn-nexus" style="width: 100%; padding: 13px; font-size: 13px; margin-top: 8px;">
+            ENTER INVESTIGATION ➔
+          </button>
+        </form>
+
+        <div class="login-status-line">
+          <span class="status-dot"></span>
+          <span>NEXUS STATUS: UNSTABLE // TIMELINE DIVERGENCE ACTIVE</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====================================================================
+         SCREEN 2: TEAM DASHBOARD
+         ==================================================================== -->
+    <div id="screen-dashboard" class="screen">
+      <div class="dashboard-card">
+        <div class="dashboard-header-bar">
+          <div class="team-badge-large">
+            <svg viewBox="0 0 100 100" style="width: 36px; height: 36px;">
+              <polygon points="50,10 90,30 90,70 50,90 10,70 10,30" fill="none" stroke="#3EA6FF" stroke-width="3"/>
+              <circle cx="50" cy="50" r="12" fill="#3EA6FF"/>
+            </svg>
+            <div>
+              <div class="team-tag" id="dash-team-title">TEAM 07</div>
+              <span class="round-tag">ROUND 1 // EVENT 1: INVESTIGATION</span>
+            </div>
+          </div>
+
+          <div class="timer-preview">
+            <span style="font-size: 16px; color: var(--text-dim);">⏱️</span>
+            <span id="dashboard-timer-clock">45:00</span>
+          </div>
+        </div>
+
+        <div class="mission-briefing">
+          <div class="briefing-label">MISSION DIRECTIVE</div>
+          <p class="briefing-text">
+            Investigate the breach, verify the forensic evidence, and reconstruct the digital trail. Three sequential investigation cases await your team. Accurate deductions earn up to 30 points.
+          </p>
+        </div>
+
+        <div class="dashboard-stats-grid">
+          <div class="stat-tile">
+            <span class="stat-label">TOTAL AVAILABLE SCORE</span>
+            <span class="stat-val" id="dash-score-val">0 / 30</span>
+          </div>
+          <div class="stat-tile">
+            <span class="stat-label">CASE 01: BREACH REPORT</span>
+            <span class="stat-val" style="font-size: 15px;" id="dash-stat-c1">ACTIVE</span>
+          </div>
+          <div class="stat-tile">
+            <span class="stat-label">CASE 02: AI OR AUTHENTIC?</span>
+            <span class="stat-val" style="font-size: 15px; color: var(--text-dim);" id="dash-stat-c2">LOCKED</span>
+          </div>
+          <div class="stat-tile">
+            <span class="stat-label">CASE 03: DIGITAL TRAIL</span>
+            <span class="stat-val" style="font-size: 15px; color: var(--text-dim);" id="dash-stat-c3">LOCKED</span>
+          </div>
+        </div>
+
+        <div class="rules-card">
+          <div class="rules-title">
+            <span>⚠️</span>
+            <span>SIMULATION OPERATING DIRECTIVES</span>
+          </div>
+          <ul class="rules-list">
+            <li><strong>Simulation, not technical training:</strong> No real hacking, command line, or external exploits required.</li>
+            <li><strong>Provide evidence-based answers:</strong> Use only the logs, telemetry, and forensic records provided in the terminal.</li>
+            <li><strong>Continuous 45:00 Timer:</strong> The clock starts immediately when you begin and persists across all three cases.</li>
+            <li><strong>Accuracy-based scoring:</strong> Hints are available if you get stuck, but will reduce maximum question points.</li>
+          </ul>
+        </div>
+
+        <button id="btn-begin-investigation" class="btn btn-primary" style="width: 100%; padding: 16px; font-size: 15px;">
+          BEGIN INVESTIGATION 01 ➔
+        </button>
+      </div>
+    </div>
+
+    <!-- ====================================================================
+         SCREEN 3: GLOBAL INVESTIGATION WORKSPACE SHELL
+         ==================================================================== -->
+    <div id="screen-investigation" class="screen">
+      <!-- Top Navigation Bar -->
+      <header class="top-bar">
+        <div class="top-bar-left">
+          <div class="top-logo">
+            <svg viewBox="0 0 100 100">
+              <polygon points="50,8 88,28 88,72 50,92 12,72 12,28" fill="none" stroke="#9B5CFF" stroke-width="3"/>
+              <circle cx="50" cy="50" r="10" fill="#3EA6FF"/>
+            </svg>
+            <span>INFINITY NEXUS</span>
+          </div>
+          <div class="case-nav-title" id="top-case-title">
+            CASE 01 // THE BREACH REPORT
+          </div>
+        </div>
+
+        <div class="top-bar-right">
+          <div class="team-badge-pill">
+            <span>TEAM:</span>
+            <strong id="top-team-badge">TEAM 07</strong>
+          </div>
+
+          <div class="countdown-clock" id="top-timer-clock">
+            45:00
+          </div>
+
+          <!-- Utility Toggles -->
+          <div style="display: flex; gap: 6px;">
+            <button class="btn btn-secondary" id="btn-toggle-audio" style="padding: 6px 10px; font-size: 10.5px;">
+              SFX: ACTIVE
+            </button>
+            <button class="btn btn-secondary" id="btn-toggle-crt" style="padding: 6px 10px; font-size: 10.5px;">
+              CRT: ON
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Main Layout Body -->
+      <div class="investigation-body">
+        <!-- Left Rail: Round Progress -->
+        <aside class="left-rail">
+          <div class="rail-section-title">INVESTIGATION PROGRESS</div>
+          <div class="cases-progress-list" id="cases-progress-list">
+            <!-- Rendered dynamically -->
+          </div>
+
+          <div style="margin-top: auto; padding-top: 14px; border-top: 1px solid var(--border-line);">
+            <div style="font-family: var(--font-mono); font-size: 10.5px; color: var(--text-dim); text-transform: uppercase;">
+              NEXUS COHERENCE
+            </div>
+            <div style="height: 6px; background: var(--bg-dark); border-radius: 3px; margin: 6px 0; overflow: hidden;">
+              <div style="width: 42%; height: 100%; background: var(--crimson-red);"></div>
+            </div>
+            <span style="font-family: var(--font-mono); font-size: 11px; color: var(--crimson-red);">42% (CRITICAL INSTABILITY)</span>
+          </div>
+        </aside>
+
+        <!-- Center Workspace: Evidence & Case Interactions -->
+        <main class="main-workspace" id="workspace-container">
+          <!-- Dynamically populated per case -->
+        </main>
+
+        <!-- Right Rail: Tactical Intelligence Panel -->
+        <aside class="right-rail">
+          <div class="intel-block">
+            <div class="intel-title">
+              <span>🎯</span>
+              <span>CURRENT OBJECTIVE</span>
+            </div>
+            <div class="intel-content" id="intel-objective-text">
+              Reconstruct the chronological breach sequence and isolate anomalous records.
+            </div>
+          </div>
+
+          <div class="score-display-box">
+            <div>
+              <div style="font-family: var(--font-mono); font-size: 10.5px; color: var(--text-muted); text-transform: uppercase;">
+                CURRENT SCORE
+              </div>
+              <div class="score-num-huge" id="intel-score-val">0 / 30</div>
+            </div>
+            <div style="text-align: right;">
+              <div style="font-family: var(--font-mono); font-size: 10.5px; color: var(--text-muted); text-transform: uppercase;">
+                EVIDENCE
+              </div>
+              <div style="font-family: var(--font-mono); font-size: 12px; color: var(--text-main);" id="intel-evidence-count">
+                07 ITEMS
+              </div>
+            </div>
+          </div>
+
+          <!-- Hint Drawer -->
+          <div class="intel-block" style="flex: 1 1 auto; overflow-y: auto;">
+            <div class="intel-title">
+              <span>💡</span>
+              <span>TACTICAL HINTS SYSTEM</span>
+            </div>
+            <p style="font-size: 12px; color: var(--text-dim); margin-bottom: 6px;">
+              Hints reveal category and directional clues. Penalty: Hint 1 (-1 pt), Hint 2 (-1 addl pt), Hint 3 (0 pts max).
+            </p>
+            <div class="hint-drawer" id="hint-drawer-items">
+              <!-- Dynamically rendered per question -->
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <!-- Bottom Action Bar -->
+      <footer class="bottom-action-bar">
+        <div class="action-group-left">
+          <button class="btn btn-secondary" id="btn-back-dashboard">
+            ◀ DASHBOARD
+          </button>
+          <button class="btn btn-secondary" id="btn-reset-selection">
+            RESET SELECTIONS
+          </button>
+        </div>
+
+        <div class="action-group-right">
+          <button class="btn btn-primary" id="btn-submit-answer">
+            SUBMIT ANSWERS
+          </button>
+          <button class="btn btn-nexus" id="btn-next-investigation" style="display: none;">
+            NEXT INVESTIGATION ➔
+          </button>
+        </div>
+      </footer>
+    </div>
+
+    <!-- ====================================================================
+         SCREEN 4: ROUND 1 SCORE SUMMARY SCREEN
+         ==================================================================== -->
+    <div id="screen-summary" class="screen">
+      <div class="summary-container">
+        <div class="summary-crest-wrap">
+          <svg viewBox="0 0 100 100" style="width: 100%; height: 100%;">
+            <polygon points="50,5 90,25 90,75 50,95 10,75 10,25" fill="none" stroke="#9B5CFF" stroke-width="3"/>
+            <polygon points="50,18 78,34 78,66 50,82 22,66 22,34" fill="none" stroke="#3EA6FF" stroke-width="2"/>
+            <circle cx="50" cy="50" r="12" fill="#FFD43B"/>
+          </svg>
+        </div>
+
+        <div class="summary-header-text">
+          <h1>ROUND 1 // INVESTIGATION COMPLETE</h1>
+          <p>INFINITY NEXUS FORENSIC AUDIT RECORDED</p>
+        </div>
+
+        <table class="score-breakdown-table">
+          <tbody id="summary-score-table-body">
+            <!-- Dynamically populated -->
+          </tbody>
+        </table>
+
+        <div class="story-status-box">
+          <div class="story-status-title">NARRATIVE AUDIT STATUS</div>
+          <div class="story-status-body">
+            <strong>PRIMARY IDENTITY: UNRESOLVED</strong><br>
+            The official security records were deliberately manipulated using Doctor Doom's credentials, while forensic telemetry shows he was absent from the terminal. Speed-Force tachyon residue and an external remote bridge point toward deliberate timeline sabotage.<br><br>
+            <span style="color: var(--electric-yellow);"><strong>NEXT OBJECTIVE:</strong> Await the next projector system transmission for the narrative transition.</span>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 14px; justify-content: center;">
+          <button class="btn btn-primary" id="btn-summary-return" style="padding: 14px 28px; font-size: 14px;">
+            RETURN TO CONTROL CENTRE ➔
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ====================================================================
+       MODALS: FULLSCREEN EVIDENCE INSPECTOR
+       ==================================================================== -->
+  <div class="modal-backdrop" id="modal-fullscreen-evidence">
+    <div class="modal-window modal-large">
+      <div class="modal-header">
+        <div class="modal-title" id="fullscreen-modal-title">EVIDENCE INSPECTION</div>
+        <button class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body" id="fullscreen-modal-body">
+        <!-- Content injected dynamically -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary modal-close-btn">CLOSE</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================================
+       MODALS: EVIDENCE COMPARISON (SIDE-BY-SIDE)
+       ==================================================================== -->
+  <div class="modal-backdrop" id="modal-comparison">
+    <div class="modal-window modal-large" style="border-top-color: var(--nexus-purple);">
+      <div class="modal-header">
+        <div class="modal-title">SIDE-BY-SIDE FORENSIC COMPARISON</div>
+        <button class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body" id="comparison-modal-body">
+        <!-- Content injected dynamically -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary modal-close-btn">DONE COMPARING</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================================
+       MODALS: ORGANISER / ADMIN CONSOLE
+       ==================================================================== -->
+  <div class="modal-backdrop" id="modal-admin-console">
+    <div class="modal-window admin-window modal-large">
+      <div class="modal-header">
+        <div class="modal-title" style="color: var(--nexus-purple);">ORGANISER CONTROL TERMINAL // ROUND 1</div>
+        <button class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body" id="admin-console-body">
+        <!-- Content injected dynamically by admin.js -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary modal-close-btn">EXIT ADMIN</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer Discreet Admin Trigger -->
+  <div style="position: fixed; bottom: 8px; right: 12px; z-index: 999; opacity: 0.3; transition: opacity 0.2s;" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0.3'">
+    <button id="btn-admin-console-trigger" style="background: transparent; border: 1px solid #1F2B3E; color: #8E9AAF; font-family: monospace; font-size: 9.5px; padding: 2px 6px; cursor: pointer;">
+      ADMIN [CTRL+SHIFT+A]
+    </button>
+  </div>
+
+  <!-- JavaScript Engines -->
+  <script src="cases-data.js"></script>
+  <script src="admin.js"></script>
+  <script src="app.js"></script>
+
+</body>
+</html>
