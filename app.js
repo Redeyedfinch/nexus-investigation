@@ -577,6 +577,15 @@ class SimulationApp {
 
       <!-- Questions Area -->
       <div class="questions-panel">
+        ${activeCaseState.completed ? `
+          <div class="case-locked-banner">
+            <div>
+              <div style="font-weight: 700; color: #fff;">🔒 ANSWERS EVALUATED & SUBMITTED (LOCKED)</div>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 3px;">Only 1 attempt is permitted. Responses permanently recorded for judges' evaluation.</div>
+            </div>
+            <span class="lock-badge">SCORE: ${this.state.caseScores[0]}/10 PTS</span>
+          </div>
+        ` : ''}
         <div class="questions-header">
           <div class="questions-title">Investigation Questions // 5 Objectives (10 Points)</div>
           <div class="case-meta-pills">
@@ -797,9 +806,9 @@ class SimulationApp {
       <!-- Mandatory "Why?" field -->
       <div class="why-rationale-box">
         <label style="font-family: var(--font-mono); font-size: 11.5px; color: var(--crimson-red); text-transform: uppercase; font-weight: 700;">
-          DEDUCTION RATIONALE: WHY IS THE QUESTIONABLE EVIDENCE SUSPICIOUS?
+          DEDUCTION RATIONALE: WHY IS THE QUESTIONABLE EVIDENCE SUSPICIOUS? ${activeCaseState.completed ? '(LOCKED)' : ''}
         </label>
-        <textarea id="why-rationale-input" rows="2" class="q-text-input" placeholder="Explain the objective contradiction (e.g. CCTV & biometric sensors prove the room was empty at 00:19:12, contradicting the screenshot's in-person presence claim)...">${activeCaseState.whyText || ''}</textarea>
+        <textarea id="why-rationale-input" rows="2" class="q-text-input" placeholder="Explain the objective contradiction (e.g. CCTV & biometric sensors prove the room was empty at 00:19:12, contradicting the screenshot's in-person presence claim)..." ${activeCaseState.completed ? 'disabled' : ''}>${activeCaseState.whyText || ''}</textarea>
       </div>
 
       <!-- Feedback Banner if Submitted -->
@@ -814,6 +823,15 @@ class SimulationApp {
 
       <!-- Questions Area -->
       <div class="questions-panel">
+        ${activeCaseState.completed ? `
+          <div class="case-locked-banner">
+            <div>
+              <div style="font-weight: 700; color: #fff;">🔒 ANSWERS EVALUATED & SUBMITTED (LOCKED)</div>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 3px;">Only 1 attempt is permitted. Responses permanently recorded for judges' evaluation.</div>
+            </div>
+            <span class="lock-badge">SCORE: ${this.state.caseScores[1]}/10 PTS</span>
+          </div>
+        ` : ''}
         <div class="questions-header">
           <div class="questions-title">Investigation Questions // 5 Objectives (10 Points)</div>
           <div class="case-meta-pills">
@@ -862,6 +880,7 @@ class SimulationApp {
     // Bin toggle buttons
     container.querySelectorAll(".btn-toggle-bin").forEach(btn => {
       btn.addEventListener("click", () => {
+        if (activeCaseState.completed) return;
         const bin = btn.dataset.bin;
         const evId = btn.dataset.evId;
         if (!activeCaseState.bins[bin]) activeCaseState.bins[bin] = [];
@@ -1032,6 +1051,15 @@ class SimulationApp {
 
       <!-- Questions Area -->
       <div class="questions-panel">
+        ${activeCaseState.completed ? `
+          <div class="case-locked-banner">
+            <div>
+              <div style="font-weight: 700; color: #fff;">🔒 ANSWERS EVALUATED & SUBMITTED (LOCKED)</div>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 3px;">Only 1 attempt is permitted. Responses permanently recorded for judges' evaluation.</div>
+            </div>
+            <span class="lock-badge">SCORE: ${this.state.caseScores[2]}/10 PTS</span>
+          </div>
+        ` : ''}
         <div class="questions-header">
           <div class="questions-title">Investigation Questions // 5 Objectives (10 Points)</div>
           <div class="case-meta-pills">
@@ -1062,8 +1090,17 @@ class SimulationApp {
       connectorEl.addEventListener("click", () => {
         const idx = parseInt(connectorEl.dataset.connectorIdx);
         const trail = caseData.trails[idx];
-        if (!activeCaseState.trailLinks) activeCaseState.trailLinks = [];
+        const detailTitle = document.getElementById("trail-detail-title");
+        const detailText = document.getElementById("trail-detail-text");
+        if (detailTitle) detailTitle.textContent = `TRAIL CONNECTION: ${trail.from} ➔ ${trail.to}`;
+        if (detailText) detailText.innerHTML = `<strong>Forensic Correlation:</strong> ${trail.note}`;
 
+        if (activeCaseState.completed) {
+          // Locked - inspect only, no mutation
+          return;
+        }
+
+        if (!activeCaseState.trailLinks) activeCaseState.trailLinks = [];
         if (activeCaseState.trailLinks.includes(idx)) {
           activeCaseState.trailLinks = activeCaseState.trailLinks.filter(x => x !== idx);
         } else {
@@ -1071,30 +1108,31 @@ class SimulationApp {
           this.playSound('click');
         }
         this.saveState();
-
-        const detailTitle = document.getElementById("trail-detail-title");
-        const detailText = document.getElementById("trail-detail-text");
-        if (detailTitle) detailTitle.textContent = `TRAIL CONNECTION: ${trail.from} ➔ ${trail.to}`;
-        if (detailText) detailText.innerHTML = `<strong>Forensic Correlation:</strong> ${trail.note}`;
-
         this.renderCase03(container, caseData);
       });
     });
 
     const btnResetTrail = document.getElementById("btn-reset-trail");
     if (btnResetTrail) {
-      btnResetTrail.addEventListener("click", () => {
-        activeCaseState.trailLinks = [];
-        activeCaseState.activeNodes = [];
-        this.saveState();
-        this.playSound('click');
-        const detailTitle = document.getElementById("trail-detail-title");
-        const detailText = document.getElementById("trail-detail-text");
-        if (detailTitle) detailTitle.textContent = "TRAIL SELECTIONS RESET";
-        if (detailText) detailText.textContent = "Click any node or connection link above to inspect forensic evidence data.";
-        this.renderCase03(container, caseData);
-        this.showToast("Digital trail selections reset.");
-      });
+      if (activeCaseState.completed) {
+        btnResetTrail.disabled = true;
+        btnResetTrail.style.opacity = "0.4";
+        btnResetTrail.style.cursor = "not-allowed";
+        btnResetTrail.title = "Trail is locked after case submission";
+      } else {
+        btnResetTrail.addEventListener("click", () => {
+          activeCaseState.trailLinks = [];
+          activeCaseState.activeNodes = [];
+          this.saveState();
+          this.playSound('click');
+          const detailTitle = document.getElementById("trail-detail-title");
+          const detailText = document.getElementById("trail-detail-text");
+          if (detailTitle) detailTitle.textContent = "TRAIL SELECTIONS RESET";
+          if (detailText) detailText.textContent = "Click any node or connection link above to inspect forensic evidence data.";
+          this.renderCase03(container, caseData);
+          this.showToast("Digital trail selections reset.");
+        });
+      }
     }
 
     this.attachQuestionInputListeners(caseData, activeCaseState);
@@ -1174,6 +1212,7 @@ class SimulationApp {
   }
 
   attachQuestionInputListeners(caseData, activeCaseState) {
+    if (activeCaseState.completed) return;
     document.querySelectorAll(".q-input-elem").forEach(input => {
       input.addEventListener("change", (e) => {
         const qid = input.dataset.qid;
@@ -1220,22 +1259,26 @@ class SimulationApp {
     }
 
     let earnedPoints = 0;
+    const questionAuditList = [];
 
     caseData.questions.forEach((q, qIndex) => {
       const userAnswer = activeCaseState.answers[q.id];
       const hintCount = activeCaseState.hintsRevealed[qIndex] || 0;
 
       let questionBase = 0;
+      let isCorrect = false;
 
       if (q.type === 'select' || q.type === 'radio') {
         if (userAnswer === q.correct) {
           questionBase = q.points;
+          isCorrect = true;
         }
       } else if (q.type === 'multiselect') {
         if (Array.isArray(userAnswer)) {
           const isExactMatch = q.correct.every(item => userAnswer.includes(item)) && userAnswer.length === q.correct.length;
           if (isExactMatch) {
             questionBase = q.points;
+            isCorrect = true;
           } else {
             // Partial credit if at least one correct
             const matching = q.correct.filter(item => userAnswer.includes(item)).length;
@@ -1248,6 +1291,7 @@ class SimulationApp {
           const matchCount = q.keywords.filter(kw => lower.includes(kw)).length;
           if (matchCount >= 2) {
             questionBase = q.points;
+            isCorrect = true;
           } else if (matchCount === 1) {
             questionBase = 1;
           }
@@ -1255,20 +1299,56 @@ class SimulationApp {
       }
 
       // Apply Hint penalties
-      // Hint 1: -1 pt
-      // Hint 2: -2 pts total (down to 0)
-      // Hint 3: 0 max points
+      let penalty = 0;
       if (hintCount === 1) {
-        questionBase = Math.max(0, questionBase - 1);
+        penalty = 1;
       } else if (hintCount >= 2) {
-        questionBase = 0;
+        penalty = questionBase;
       }
 
-      earnedPoints += questionBase;
+      const awardedForQ = Math.max(0, questionBase - penalty);
+      earnedPoints += awardedForQ;
+
+      questionAuditList.push({
+        qId: q.id,
+        qText: q.text,
+        userAnswer: userAnswer !== undefined && userAnswer !== null && userAnswer !== '' ? userAnswer : "NO_ANSWER",
+        correctAnswer: q.correct || (q.keywords ? q.keywords.join(', ') : ""),
+        isCorrect: isCorrect,
+        points: awardedForQ,
+        maxPoints: q.points,
+        hintsUsed: hintCount,
+        hintPenalty: penalty,
+        explanation: q.explanation
+      });
     });
 
     this.state.caseScores[currentCaseIdx] = earnedPoints;
     activeCaseState.completed = true;
+
+    // Record submission for judges evaluation and spreadsheet integration
+    if (window.admin && window.admin.recordSubmission) {
+      const whyInputElem = document.getElementById("why-rationale-input");
+      const submissionPayload = {
+        submissionId: `SUB-${(this.state.teamId || 'TEAM').replace(/\s+/g, '')}-C0${currentCaseIdx + 1}-${Date.now()}`,
+        teamId: this.state.teamId || "TEAM 07",
+        caseIndex: currentCaseIdx,
+        caseNumber: `0${currentCaseIdx + 1}`,
+        caseTitle: caseData.title,
+        timestamp: new Date().toLocaleString(),
+        score: earnedPoints,
+        maxScore: caseData.points || 10,
+        questions: questionAuditList,
+        qualitative: {
+          whyText: activeCaseState.whyText || (whyInputElem ? whyInputElem.value : ""),
+          markedRows: Array.from(this.markedRows || []),
+          bins: activeCaseState.bins || { verified: [], questionable: [] },
+          trailLinks: activeCaseState.trailLinks || []
+        },
+        timerRemaining: this.formatTime(this.state.timerSeconds)
+      };
+      window.admin.recordSubmission(submissionPayload);
+    }
 
     // Set feedback message
     if (currentCaseIdx === 0) {
@@ -1285,10 +1365,8 @@ class SimulationApp {
     this.saveState();
     this.playSound('success');
 
-    // Notify organiser admin log
-    if (window.admin) {
-      window.admin.adjustTeamPoints(this.state.teamId, 0, `Submitted Case 0${currentCaseIdx + 1}: earned ${earnedPoints}/10 pts.`);
-    }
+    this.showToast(`Case 0${currentCaseIdx + 1} submitted! Locked (1 attempt only).`);
+    alert(`EVALUATION COMPLETE // SUBMISSION CONFIRMED\n\nInvestigation 0${currentCaseIdx + 1} has been submitted.\nScore Awarded: ${earnedPoints}/10 Points\n\nNotice: Single-attempt policy is active. Your answers have been permanently locked and recorded for judges' evaluation.`);
 
     this.renderCurrentCase();
     this.updateUI();
@@ -1298,16 +1376,13 @@ class SimulationApp {
     const currentCaseIdx = this.state.currentCase;
     const activeCaseState = this.state.caseState[currentCaseIdx];
 
+    // STRICT SINGLE-ATTEMPT LOCKOUT:
     if (activeCaseState.completed) {
-      const confirmReset = confirm(
-        `Investigation 0${currentCaseIdx + 1} has already been submitted (${this.state.caseScores[currentCaseIdx]}/10 pts).\n\nDo you want to reset this case and clear your submitted answers so your team can re-attempt it? (This will reset your score for this case).`
+      alert(
+        `EVALUATION LOCKED: Only 1 attempt is permitted per investigation.\n\nCase 0${currentCaseIdx + 1} has already been evaluated and submitted (${this.state.caseScores[currentCaseIdx]}/10 pts).\n\nYour responses are permanently recorded for the judges and cannot be reset or re-attempted.`
       );
-      if (!confirmReset) return;
-
-      activeCaseState.completed = false;
-      activeCaseState.feedback = null;
-      this.state.caseScores[currentCaseIdx] = 0;
-      this.state.score = this.calculateTotalScore();
+      this.showToast("Locked: Only 1 attempt allowed per case.");
+      return;
     }
 
     // Reset answers
@@ -1505,10 +1580,25 @@ class SimulationApp {
     const activeCaseState = this.state.caseState[this.state.currentCase];
     const btnSubmit = document.getElementById("btn-submit-answer");
     const btnNext = document.getElementById("btn-next-investigation");
+    const btnReset = document.getElementById("btn-reset-selections");
 
     if (btnSubmit) {
       btnSubmit.disabled = activeCaseState.completed;
-      btnSubmit.textContent = activeCaseState.completed ? "CASE EVALUATED" : "SUBMIT ANSWERS";
+      btnSubmit.textContent = activeCaseState.completed ? "LOCKED // EVALUATED (1 ATTEMPT ONLY)" : "SUBMIT ANSWERS";
+    }
+
+    if (btnReset) {
+      if (activeCaseState.completed) {
+        btnReset.disabled = true;
+        btnReset.style.opacity = "0.4";
+        btnReset.style.cursor = "not-allowed";
+        btnReset.title = "Evaluation locked: Only 1 attempt permitted";
+      } else {
+        btnReset.disabled = false;
+        btnReset.style.opacity = "1";
+        btnReset.style.cursor = "pointer";
+        btnReset.title = "Reset current unsubmitted selections";
+      }
     }
 
     if (btnNext) {
@@ -1634,119 +1724,368 @@ class SimulationApp {
     const body = document.getElementById("admin-console-body");
     if (!body) return;
 
+    this.adminActiveTab = this.adminActiveTab || 'leaderboard';
+    this.adminSelectedJudgeTeam = this.adminSelectedJudgeTeam || 'ALL';
+
     const teams = window.admin.teams;
+    const responses = window.admin.teamResponses || [];
+
+    // Gather all distinct teams for judging filter
+    const recordedTeams = Array.from(new Set(responses.map(r => r.teamId)));
+    teams.forEach(t => { if (!recordedTeams.includes(t.id)) recordedTeams.push(t.id); });
+
+    let contentHtml = '';
+
+    // --- TAB 1: LEADERBOARD & TIMERS ---
+    if (this.adminActiveTab === 'leaderboard') {
+      contentHtml = `
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
+          <div style="font-family: var(--font-mono); font-size: 12px; color: var(--nexus-purple); font-weight: 700;">
+            ORGANISER MASTER TERMINAL // LIVE LEADERBOARD & TIMER CONTROLS
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-secondary" id="btn-admin-timer-toggle">
+              ${this.state.timerRunning ? 'PAUSE TIMER' : 'RESUME TIMER'}
+            </button>
+            <button class="btn btn-secondary" id="btn-admin-add-time">
+              +5 MINS
+            </button>
+            <button class="btn btn-primary" id="btn-admin-export-csv">
+              EXPORT SCORES CSV
+            </button>
+          </div>
+        </div>
+
+        <!-- Teams Table -->
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Team ID</th>
+              <th>Current Case</th>
+              <th>C1</th>
+              <th>C2</th>
+              <th>C3</th>
+              <th>Total Score</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${teams.map(t => `
+              <tr>
+                <td style="font-weight: 700; color: var(--text-highlight);">${t.id}</td>
+                <td>Case 0${t.currentCase}</td>
+                <td>${t.case1 || 0}/10</td>
+                <td>${t.case2 || 0}/10</td>
+                <td>${t.case3 || 0}/10</td>
+                <td style="color: var(--cold-blue); font-weight: 700;">${t.score} / 30</td>
+                <td>
+                  <button class="btn btn-secondary btn-admin-action" data-action="add-pts" data-team="${t.id}" style="padding: 3px 8px; font-size: 10px;">+2 PTS</button>
+                  <button class="btn btn-secondary btn-admin-action" data-action="sub-pts" data-team="${t.id}" style="padding: 3px 8px; font-size: 10px;">-2 PTS</button>
+                  <button class="btn btn-secondary btn-admin-action" data-action="reset" data-team="${t.id}" style="padding: 3px 8px; font-size: 10px;">RESET</button>
+                  <button class="btn btn-secondary btn-admin-action" data-action="unlock" data-team="${t.id}" style="padding: 3px 8px; font-size: 10px;">UNLOCK NEXT</button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+
+        <!-- Audit Trail Preview -->
+        <div style="margin-top: 14px;">
+          <div style="font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 6px;">
+            Live Organiser Audit Log
+          </div>
+          <div style="background: rgba(7,10,15,0.8); border: 1px solid var(--border-line); max-height: 120px; overflow-y: auto; padding: 8px; font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);">
+            ${window.admin.auditLog.map(a => `<div>[${a.time}] [${a.action}] ${a.details}</div>`).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    // --- TAB 2: JUDGES EVALUATION & RAW RESPONSES ---
+    else if (this.adminActiveTab === 'judging') {
+      const filtered = responses.filter(r => this.adminSelectedJudgeTeam === 'ALL' || r.teamId === this.adminSelectedJudgeTeam);
+
+      contentHtml = `
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 14px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <label style="font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); text-transform: uppercase; font-weight: 700;">
+              Filter Team:
+            </label>
+            <select id="judge-team-select" class="q-text-input" style="padding: 6px 12px; font-size: 11.5px; width: 180px;">
+              <option value="ALL" ${this.adminSelectedJudgeTeam === 'ALL' ? 'selected' : ''}>ALL TEAMS (${responses.length})</option>
+              ${recordedTeams.map(t => `<option value="${t}" ${this.adminSelectedJudgeTeam === t ? 'selected' : ''}>${t}</option>`).join('')}
+            </select>
+          </div>
+          <button class="btn btn-primary" id="btn-admin-export-judges-csv" style="padding: 8px 14px; font-size: 11px;">
+            📊 EXPORT JUDGES SPREADSHEET (CSV)
+          </button>
+        </div>
+
+        <div style="max-height: 460px; overflow-y: auto; padding-right: 4px;">
+          ${filtered.length === 0 ? `
+            <div style="text-align: center; padding: 40px 20px; border: 1px dashed var(--border-line); color: var(--text-muted); font-family: var(--font-mono); font-size: 12px; line-height: 1.6;">
+              NO PARTICIPANT RESPONSES RECORDED YET FOR THIS FILTER.<br>
+              <span style="font-size: 11px; color: var(--text-dim);">When a team completes and submits an investigation case, their full question choices, written justifications, and earned points will appear here immediately for judges' review.</span>
+            </div>
+          ` : filtered.map(r => `
+            <div class="judge-card">
+              <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-line); padding-bottom: 8px; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                <div>
+                  <span style="font-family: var(--font-mono); font-size: 14px; font-weight: 700; color: var(--text-highlight);">${r.teamId}</span>
+                  <span style="color: var(--cold-blue); font-size: 12px; margin-left: 8px; font-family: var(--font-mono); font-weight: 600;">Case 0${r.caseIndex + 1}: ${r.caseTitle}</span>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                  <span style="font-size: 11px; color: var(--text-dim); font-family: var(--font-mono);">${r.timestamp}</span>
+                  <span class="badge badge-verified" style="font-size: 11px;">SCORE: ${r.score} / ${r.maxScore} PTS</span>
+                </div>
+              </div>
+
+              ${r.qualitative && (r.qualitative.whyText || (r.qualitative.markedRows && r.qualitative.markedRows.length > 0) || (r.qualitative.trailLinks && r.qualitative.trailLinks.length > 0)) ? `
+                <div style="background: rgba(62,166,255,0.06); border-left: 3px solid var(--cold-blue); padding: 10px 14px; margin-bottom: 12px; font-size: 12px; line-height: 1.5;">
+                  ${r.qualitative.whyText ? `<div><strong style="color: var(--cold-blue);">Participant Written Rationale ("Why?" Analysis):</strong> <span style="color: var(--text-highlight); font-style: italic;">"${r.qualitative.whyText}"</span></div>` : ''}
+                  ${r.qualitative.markedRows && r.qualitative.markedRows.length > 0 ? `<div style="margin-top: 4px;"><strong style="color: var(--crimson-red);">Marked Suspicious Rows:</strong> <span style="font-family: var(--font-mono); font-size: 11px;">${r.qualitative.markedRows.join(', ')}</span></div>` : ''}
+                  ${r.qualitative.bins ? `<div style="margin-top: 4px;"><strong style="color: var(--electric-yellow);">Categorized Evidence:</strong> <span style="font-family: var(--font-mono); font-size: 11px;">Verified: [${(r.qualitative.bins.verified || []).join(', ')}] | Questionable: [${(r.qualitative.bins.questionable || []).join(', ')}]</span></div>` : ''}
+                  ${r.qualitative.trailLinks && r.qualitative.trailLinks.length > 0 ? `<div style="margin-top: 4px;"><strong style="color: var(--nexus-purple);">Correlated Trail Connections:</strong> <span style="font-family: var(--font-mono); font-size: 11px;">${r.qualitative.trailLinks.join(' ➔ ')}</span></div>` : ''}
+                </div>
+              ` : ''}
+
+              <table class="admin-table" style="font-size: 12px; margin-bottom: 10px;">
+                <thead>
+                  <tr>
+                    <th style="width: 10%;">Q-ID</th>
+                    <th style="width: 38%;">Question Prompt</th>
+                    <th style="width: 26%;">Participant Answer</th>
+                    <th style="width: 14%;">Result</th>
+                    <th style="width: 12%;">Score</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${r.questions.map(q => {
+                    const resultColor = q.isCorrect ? 'var(--cold-blue)' : (q.points > 0 ? 'var(--electric-yellow)' : 'var(--crimson-red)');
+                    const statusText = q.isCorrect ? 'CORRECT' : (q.points > 0 ? 'PARTIAL' : 'INCORRECT');
+                    const ansStr = Array.isArray(q.userAnswer) ? q.userAnswer.join('; ') : q.userAnswer;
+                    return `
+                      <tr>
+                        <td style="font-family: var(--font-mono); font-weight: 700;">${q.qId}</td>
+                        <td>${q.qText}</td>
+                        <td style="font-family: var(--font-mono); color: var(--text-highlight); font-weight: 600;">${ansStr}</td>
+                        <td style="color: ${resultColor}; font-weight: 700; font-family: var(--font-mono); font-size: 11px;">
+                          ${statusText} ${q.hintsUsed > 0 ? `<span style="font-size: 9.5px; opacity: 0.8;">(-${q.hintPenalty} hint)</span>` : ''}
+                        </td>
+                        <td style="font-weight: 700; font-family: var(--font-mono); color: ${q.points > 0 ? 'var(--cold-blue)' : 'var(--text-muted)'};">${q.points} / ${q.maxPoints}</td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+
+              <div style="display: flex; gap: 8px; justify-content: flex-end; align-items: center; padding-top: 6px;">
+                <span style="font-size: 11px; color: var(--text-dim); font-family: var(--font-mono);">JUDGE ADJUSTMENT:</span>
+                <button class="btn btn-secondary btn-judge-adjust" data-team="${r.teamId}" data-delta="1" style="padding: 4px 8px; font-size: 10px;">+1 BONUS</button>
+                <button class="btn btn-secondary btn-judge-adjust" data-team="${r.teamId}" data-delta="-1" style="padding: 4px 8px; font-size: 10px;">-1 DEDUCTION</button>
+                <button class="btn btn-secondary btn-judge-adjust" data-team="${r.teamId}" data-delta="custom" style="padding: 4px 8px; font-size: 10px;">CUSTOM SCORE</button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    // --- TAB 3: GOOGLE SHEETS LIVE SYNC ---
+    else if (this.adminActiveTab === 'sheets') {
+      contentHtml = `
+        <div style="background: var(--bg-surface); border: 1px solid var(--border-line); padding: 16px; border-radius: 2px;">
+          <div style="font-family: var(--font-mono); font-size: 12px; color: var(--cold-blue); font-weight: 700; margin-bottom: 6px;">
+            GOOGLE SHEETS LIVE WEBHOOK INTEGRATION
+          </div>
+          <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 14px; line-height: 1.5;">
+            Connect your event Google Sheet so every team submission automatically streams directly into your spreadsheet in real time. (If not configured, all responses remain securely saved in local browser storage and can be exported at any time via CSV).
+          </p>
+
+          <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap;">
+            <input type="text" id="input-sheets-webhook" class="q-text-input" placeholder="https://script.google.com/macros/s/.../exec" value="${window.admin.webhookUrl || ''}" style="flex: 1 1 350px; padding: 10px 12px; font-size: 12px;">
+            <button class="btn btn-primary" id="btn-save-webhook" style="padding: 10px 14px; font-size: 11px;">
+              SAVE WEBHOOK
+            </button>
+            <button class="btn btn-secondary" id="btn-sync-all-sheets" style="padding: 10px 14px; font-size: 11px;">
+              🔄 SYNC ALL RESPONSES NOW
+            </button>
+          </div>
+
+          <div style="font-family: var(--font-mono); font-size: 11.5px; color: ${window.admin.webhookUrl ? 'var(--cold-blue)' : 'var(--electric-yellow)'}; margin-bottom: 16px;">
+            STATUS: ${window.admin.webhookUrl ? '● CONNECTED // Auto-sync active on each participant submission' : '○ OFFLINE // Submissions stored in browser memory & ready for CSV export'}
+          </div>
+
+          <div style="border-top: 1px solid var(--border-line); padding-top: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span style="font-family: var(--font-mono); font-size: 11px; color: var(--text-highlight); font-weight: 700; text-transform: uppercase;">
+                3-Step Setup Instructions & Google Apps Script
+              </span>
+              <button class="btn btn-secondary" id="btn-copy-script" style="padding: 4px 8px; font-size: 10px;">
+                COPY SCRIPT CODE
+              </button>
+            </div>
+            <ol style="font-size: 12px; color: var(--text-muted); line-height: 1.6; margin-left: 18px; margin-bottom: 12px;">
+              <li>Open your Google Sheet and click <strong>Extensions > Apps Script</strong>.</li>
+              <li>Replace the contents of <code style="color: var(--cold-blue);">Code.gs</code> with the snippet below and click <strong>Save</strong>.</li>
+              <li>Click <strong>Deploy > New deployment</strong>, select <strong>Web app</strong>, set <em>Who has access</em> to <strong>Anyone</strong>, and click <strong>Deploy</strong>. Copy the Web app URL and paste it into the input above.</li>
+            </ol>
+            <textarea id="sheets-script-code" readonly rows="7" style="width: 100%; font-family: monospace; font-size: 11px; background: #040608; border: 1px solid var(--border-line); color: var(--cold-blue); padding: 8px; resize: vertical;">${window.admin.getGoogleAppsScriptTemplate()}</textarea>
+          </div>
+        </div>
+      `;
+    }
 
     body.innerHTML = `
-      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
-        <div style="font-family: var(--font-mono); font-size: 12px; color: var(--nexus-purple);">
-          ORGANISER MASTER TERMINAL // LIVE LEADERBOARD & CONTROL
-        </div>
-        <div style="display: flex; gap: 8px;">
-          <button class="btn btn-secondary" id="btn-admin-timer-toggle">
-            ${this.state.timerRunning ? 'PAUSE TIMER' : 'RESUME TIMER'}
-          </button>
-          <button class="btn btn-secondary" id="btn-admin-add-time">
-            +5 MINS
-          </button>
-          <button class="btn btn-primary" id="btn-admin-export-csv">
-            EXPORT SCORES CSV
-          </button>
-        </div>
+      <!-- Tab Navigation -->
+      <div class="admin-tab-nav">
+        <button class="admin-tab-btn ${this.adminActiveTab === 'leaderboard' ? 'active' : ''}" data-tab="leaderboard">
+          📋 LEADERBOARD & TIMERS
+        </button>
+        <button class="admin-tab-btn ${this.adminActiveTab === 'judging' ? 'active' : ''}" data-tab="judging">
+          ⚖️ JUDGES EVALUATION & RAW RESPONSES (${responses.length})
+        </button>
+        <button class="admin-tab-btn ${this.adminActiveTab === 'sheets' ? 'active' : ''}" data-tab="sheets">
+          📊 GOOGLE SHEETS LIVE SYNC
+        </button>
       </div>
 
-      <!-- Teams Table -->
-      <table class="admin-table">
-        <thead>
-          <tr>
-            <th>Team ID</th>
-            <th>Current Case</th>
-            <th>C1</th>
-            <th>C2</th>
-            <th>C3</th>
-            <th>Total Score</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${teams.map(t => `
-            <tr>
-              <td style="font-weight: 700; color: var(--text-highlight);">${t.id}</td>
-              <td>Case 0${t.currentCase}</td>
-              <td>${t.case1}/10</td>
-              <td>${t.case2}/10</td>
-              <td>${t.case3}/10</td>
-              <td style="color: var(--cold-blue); font-weight: 700;">${t.score} / 30</td>
-              <td>
-                <button class="btn btn-secondary btn-admin-action" data-action="add-pts" data-team="${t.id}" style="padding: 3px 8px; font-size: 10px;">+2 PTS</button>
-                <button class="btn btn-secondary btn-admin-action" data-action="sub-pts" data-team="${t.id}" style="padding: 3px 8px; font-size: 10px;">-2 PTS</button>
-                <button class="btn btn-secondary btn-admin-action" data-action="reset" data-team="${t.id}" style="padding: 3px 8px; font-size: 10px;">RESET</button>
-                <button class="btn btn-secondary btn-admin-action" data-action="unlock" data-team="${t.id}" style="padding: 3px 8px; font-size: 10px;">UNLOCK NEXT</button>
-              </td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-
-      <!-- Audit Trail Preview -->
-      <div style="margin-top: 14px;">
-        <div style="font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 6px;">
-          Live Organiser Audit Log
-        </div>
-        <div style="background: rgba(7,10,15,0.8); border: 1px solid var(--border-line); max-height: 120px; overflow-y: auto; padding: 8px; font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);">
-          ${window.admin.auditLog.map(a => `<div>[${a.time}] [${a.action}] ${a.details}</div>`).join('')}
-        </div>
-      </div>
+      ${contentHtml}
     `;
 
-    // Attach Admin actions
-    body.querySelectorAll(".btn-admin-action").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const action = btn.dataset.action;
-        const teamId = btn.dataset.team;
-
-        if (action === 'add-pts') {
-          const note = prompt("Enter audit note for +2 points bonus:");
-          window.admin.adjustTeamPoints(teamId, 2, note);
-        } else if (action === 'sub-pts') {
-          const note = prompt("Enter audit note for -2 points deduction:");
-          window.admin.adjustTeamPoints(teamId, -2, note);
-        } else if (action === 'reset') {
-          const targetTeam = window.admin.teams.find(t => t.id === teamId);
-          const currentCaseNum = targetTeam ? targetTeam.currentCase : 1;
-          if (confirm(`Reset Investigation 0${currentCaseNum} for ${teamId}?`)) {
-            window.admin.resetTeamCase(teamId, currentCaseNum);
-          }
-        } else if (action === 'unlock') {
-          window.admin.forceUnlockNext(teamId);
-        }
+    // Tab switching listeners
+    body.querySelectorAll(".admin-tab-btn").forEach(tabBtn => {
+      tabBtn.addEventListener("click", () => {
+        this.adminActiveTab = tabBtn.dataset.tab;
         this.renderAdminConsoleContent();
       });
     });
 
-    const btnCsv = document.getElementById("btn-admin-export-csv");
-    if (btnCsv) btnCsv.addEventListener("click", () => window.admin.exportCSV());
+    // Attach Tab 1 Leaderboard actions
+    if (this.adminActiveTab === 'leaderboard') {
+      body.querySelectorAll(".btn-admin-action").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const action = btn.dataset.action;
+          const teamId = btn.dataset.team;
 
-    const btnToggleTimer = document.getElementById("btn-admin-timer-toggle");
-    if (btnToggleTimer) {
-      btnToggleTimer.addEventListener("click", () => {
-        if (this.state.timerRunning) {
-          this.pauseTimer();
-        } else {
-          this.startTimer();
-        }
-        this.renderAdminConsoleContent();
+          if (action === 'add-pts') {
+            const note = prompt("Enter audit note for +2 points bonus:");
+            window.admin.adjustTeamPoints(teamId, 2, note);
+          } else if (action === 'sub-pts') {
+            const note = prompt("Enter audit note for -2 points deduction:");
+            window.admin.adjustTeamPoints(teamId, -2, note);
+          } else if (action === 'reset') {
+            const targetTeam = window.admin.teams.find(t => t.id === teamId);
+            const currentCaseNum = targetTeam ? targetTeam.currentCase : 1;
+            if (confirm(`Reset Investigation 0${currentCaseNum} for ${teamId}?`)) {
+              window.admin.resetTeamCase(teamId, currentCaseNum);
+            }
+          } else if (action === 'unlock') {
+            window.admin.forceUnlockNext(teamId);
+          }
+          this.renderAdminConsoleContent();
+        });
+      });
+
+      const btnCsv = document.getElementById("btn-admin-export-csv");
+      if (btnCsv) btnCsv.addEventListener("click", () => window.admin.exportCSV());
+
+      const btnToggleTimer = document.getElementById("btn-admin-timer-toggle");
+      if (btnToggleTimer) {
+        btnToggleTimer.addEventListener("click", () => {
+          if (this.state.timerRunning) {
+            this.pauseTimer();
+          } else {
+            this.startTimer();
+          }
+          this.renderAdminConsoleContent();
+        });
+      }
+
+      const btnAddTime = document.getElementById("btn-admin-add-time");
+      if (btnAddTime) {
+        btnAddTime.addEventListener("click", () => {
+          this.state.timerSeconds += 300;
+          this.saveState();
+          this.updateTimerDisplay();
+          window.admin.logAction("TIMER_OVERRIDE", "+5 minutes manually added to global round timer.");
+          this.renderAdminConsoleContent();
+        });
+      }
+    }
+
+    // Attach Tab 2 Judging actions
+    else if (this.adminActiveTab === 'judging') {
+      const selectTeam = document.getElementById("judge-team-select");
+      if (selectTeam) {
+        selectTeam.addEventListener("change", (e) => {
+          this.adminSelectedJudgeTeam = e.target.value;
+          this.renderAdminConsoleContent();
+        });
+      }
+
+      const btnJudgesCsv = document.getElementById("btn-admin-export-judges-csv");
+      if (btnJudgesCsv) {
+        btnJudgesCsv.addEventListener("click", () => window.admin.exportJudgesCSV());
+      }
+
+      body.querySelectorAll(".btn-judge-adjust").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const teamId = btn.dataset.team;
+          const delta = btn.dataset.delta;
+
+          if (delta === 'custom') {
+            const amount = parseInt(prompt(`Enter point adjustment for ${teamId} (+/- integer):`, "0"));
+            if (!isNaN(amount) && amount !== 0) {
+              const note = prompt("Enter judge note / evaluation reason:");
+              window.admin.adjustTeamPoints(teamId, amount, note || "Judge custom adjustment");
+            }
+          } else {
+            const num = parseInt(delta);
+            const note = prompt(`Enter reason for ${num >= 0 ? '+' : ''}${num} pts for ${teamId}:`);
+            window.admin.adjustTeamPoints(teamId, num, note || "Judge quick adjustment");
+          }
+          this.renderAdminConsoleContent();
+        });
       });
     }
 
-    const btnAddTime = document.getElementById("btn-admin-add-time");
-    if (btnAddTime) {
-      btnAddTime.addEventListener("click", () => {
-        this.state.timerSeconds += 300;
-        this.saveState();
-        this.updateTimerDisplay();
-        window.admin.logAction("TIMER_OVERRIDE", "+5 minutes manually added to global round timer.");
-        this.renderAdminConsoleContent();
-      });
+    // Attach Tab 3 Sheets actions
+    else if (this.adminActiveTab === 'sheets') {
+      const btnSaveWebhook = document.getElementById("btn-save-webhook");
+      if (btnSaveWebhook) {
+        btnSaveWebhook.addEventListener("click", () => {
+          const input = document.getElementById("input-sheets-webhook");
+          if (input) {
+            window.admin.setWebhookUrl(input.value);
+            alert(input.value ? "Google Sheets Webhook URL saved successfully!" : "Webhook URL cleared.");
+            this.renderAdminConsoleContent();
+          }
+        });
+      }
+
+      const btnSyncAll = document.getElementById("btn-sync-all-sheets");
+      if (btnSyncAll) {
+        btnSyncAll.addEventListener("click", () => {
+          window.admin.syncAllToGoogleSheets();
+        });
+      }
+
+      const btnCopyScript = document.getElementById("btn-copy-script");
+      if (btnCopyScript) {
+        btnCopyScript.addEventListener("click", () => {
+          const textarea = document.getElementById("sheets-script-code");
+          if (textarea) {
+            navigator.clipboard.writeText(textarea.value).then(() => {
+              alert("Google Apps Script code copied to clipboard! Paste this into Extensions > Apps Script in your Google Sheet.");
+            }).catch(() => {
+              textarea.select();
+              document.execCommand("copy");
+              alert("Code copied to clipboard!");
+            });
+          }
+        });
+      }
     }
   }
 

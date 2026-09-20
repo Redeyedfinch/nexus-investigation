@@ -1856,3 +1856,85 @@ body::before {
   background: var(--cold-blue) !important;
   box-shadow: 0 0 12px var(--cold-blue) !important;
 }
+
+/* Single Attempt Locked Banner */
+.case-locked-banner {
+  background: rgba(229, 72, 77, 0.12);
+  border: 1px solid var(--crimson-red);
+  border-left: 4px solid var(--crimson-red);
+  color: var(--text-highlight);
+  padding: 12px 16px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+  box-shadow: 0 0 16px rgba(229, 72, 77, 0.2);
+}
+
+.case-locked-banner .lock-badge {
+  background: var(--crimson-red);
+  color: #fff;
+  padding: 3px 8px;
+  font-size: 10.5px;
+  font-weight: 700;
+  border-radius: 2px;
+  text-transform: uppercase;
+}
+
+/* Admin Tabs & Judging Panel */
+.admin-tab-nav {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--border-line);
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.admin-tab-btn {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-line);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 8px 14px;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: all 0.2s ease;
+}
+
+.admin-tab-btn:hover {
+  border-color: var(--cold-blue);
+  color: var(--text-highlight);
+}
+
+.admin-tab-btn.active {
+  background: rgba(62, 166, 255, 0.15);
+  border-color: var(--cold-blue);
+  color: var(--cold-blue);
+  font-weight: 700;
+}
+
+.judge-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-line);
+  padding: 16px;
+  margin-bottom: 16px;
+  border-radius: 2px;
+}
+
+.judge-q-row {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 10px 0;
+  font-size: 12.5px;
+}
+
+.judge-q-row:last-child {
+  border-bottom: none;
+}
+
