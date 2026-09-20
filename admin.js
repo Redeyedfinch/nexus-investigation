@@ -5,7 +5,7 @@
 
 class AdminConsole {
   constructor() {
-    this.pin = "NEXUS-ADMIN"; // Default organiser master key
+    this.pin = "BUTWHY"; // Default organiser master key
     this.isAuthenticated = false;
     this.teams = this.loadTeams();
     this.auditLog = this.loadAuditLog();
@@ -55,7 +55,7 @@ class AdminConsole {
 
   verifyPin(inputPin) {
     const cleaned = (inputPin || '').trim().toUpperCase();
-    if (cleaned === this.pin || cleaned === "1337" || cleaned === "NEXUS-MASTER") {
+    if (cleaned === this.pin || cleaned === "1111" || cleaned === "NEXUS-MASTER") {
       this.isAuthenticated = true;
       this.logAction("ADMIN_LOGIN", "Organiser successfully authenticated to Control Console.");
       return true;
