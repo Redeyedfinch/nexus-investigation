@@ -90,6 +90,9 @@ class AdminConsole {
     if (window.app && window.app.state.teamId === teamId) {
       window.app.state.caseState[caseIndex - 1].answers = {};
       window.app.state.caseState[caseIndex - 1].completed = false;
+      window.app.state.caseState[caseIndex - 1].feedback = null;
+      window.app.state.caseScores[caseIndex - 1] = 0;
+      window.app.state.score = window.app.calculateTotalScore();
       window.app.saveState();
       window.app.renderCurrentCase();
       window.app.updateUI();

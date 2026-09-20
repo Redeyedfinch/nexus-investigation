@@ -136,14 +136,14 @@ body::before {
 
 /* Screen Transitions */
 .screen {
-  display: none;
+  display: none !important;
   width: 100%;
   min-height: 100vh;
   animation: fadeIn 0.3s ease forwards;
 }
 
 .screen.active {
-  display: flex;
+  display: flex !important;
   flex-direction: column;
 }
 
@@ -444,10 +444,8 @@ body::before {
    GLOBAL INVESTIGATION WORKSPACE SHELL
    ========================================================================== */
 
-#screen-investigation {
+#screen-investigation.active {
   height: 100vh;
-  display: flex;
-  flex-direction: column;
   overflow: hidden;
 }
 
@@ -1828,4 +1826,33 @@ body::before {
   .bins-container, .comparison-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* Toast Notifications */
+.sim-toast {
+  position: fixed;
+  bottom: 74px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--bg-panel);
+  border: 1px solid var(--cold-blue);
+  color: var(--text-highlight);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  padding: 10px 20px;
+  border-radius: 2px;
+  box-shadow: var(--panel-shadow), var(--glow-blue);
+  z-index: 10000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.sim-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.trail-connector.link-selected {
+  background: var(--cold-blue) !important;
+  box-shadow: 0 0 12px var(--cold-blue) !important;
 }

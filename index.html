@@ -36,17 +36,18 @@
         <form id="login-form" class="login-form">
           <div class="form-group">
             <label class="form-label" for="login-team-id">TEAM IDENTIFIER</label>
-            <input type="text" id="login-team-id" class="form-input" placeholder="e.g. TEAM 07" value="TEAM 07" required autocomplete="off">
+            <input type="text" id="login-team-id" class="form-input" placeholder="e.g. TEAM 07" required autocomplete="off">
           </div>
 
           <div class="form-group">
             <label class="form-label" for="login-access-code">SECURITY ACCESS CODE</label>
-            <input type="password" id="login-access-code" class="form-input" placeholder="••••••••" value="NEXUS-2026" required autocomplete="off">
+            <input type="password" id="login-access-code" class="form-input" placeholder="e.g. NEXUS-2026" required autocomplete="off">
           </div>
 
           <button type="submit" class="btn btn-nexus" style="width: 100%; padding: 13px; font-size: 13px; margin-top: 8px;">
             ENTER INVESTIGATION ➔
           </button>
+          <div id="login-error-msg" style="display: none; color: var(--crimson-red); font-family: var(--font-mono); font-size: 12px; text-align: center; margin-top: 6px;"></div>
         </form>
 
         <div class="login-status-line">
@@ -118,9 +119,17 @@
           </ul>
         </div>
 
-        <button id="btn-begin-investigation" class="btn btn-primary" style="width: 100%; padding: 16px; font-size: 15px;">
-          BEGIN INVESTIGATION 01 ➔
-        </button>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+          <button id="btn-begin-investigation" class="btn btn-primary" style="flex: 2 1 240px; padding: 16px; font-size: 15px;">
+            BEGIN INVESTIGATION 01 ➔
+          </button>
+          <button id="btn-dash-logout" class="btn btn-secondary" style="flex: 1 1 180px; padding: 16px; font-size: 13px;">
+            SWITCH TEAM / LOGOUT
+          </button>
+          <button id="btn-dash-reset-all" class="btn btn-outline-red" style="padding: 16px; font-size: 13px;" title="Reset entire simulation and score">
+            RESET ALL
+          </button>
+        </div>
       </div>
     </div>
 
@@ -160,6 +169,9 @@
             </button>
             <button class="btn btn-secondary" id="btn-toggle-crt" style="padding: 6px 10px; font-size: 10.5px;">
               CRT: ON
+            </button>
+            <button class="btn btn-outline-red" id="btn-switch-team" style="padding: 6px 10px; font-size: 10.5px;">
+              LOGOUT
             </button>
           </div>
         </div>

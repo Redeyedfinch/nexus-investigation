@@ -81,42 +81,46 @@ class SimulationApp {
 
   playSound(type) {
     if (this.audioMuted || !this.audioCtx) return;
-    if (this.audioCtx.state === 'suspended') {
-      this.audioCtx.resume();
-    }
-    const ctx = this.audioCtx;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
+    try {
+      if (this.audioCtx.state === 'suspended') {
+        this.audioCtx.resume().catch(() => {});
+      }
+      const ctx = this.audioCtx;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
 
-    const now = ctx.currentTime;
+      const now = ctx.currentTime;
 
-    if (type === 'click') {
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(800, now);
-      osc.frequency.exponentialRampToValueAtTime(400, now + 0.05);
-      gain.gain.setValueAtTime(0.08, now);
-      gain.gain.linearRampToValueAtTime(0.001, now + 0.05);
-      osc.start(now);
-      osc.stop(now + 0.05);
-    } else if (type === 'alert') {
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(320, now);
-      osc.frequency.setValueAtTime(260, now + 0.08);
-      gain.gain.setValueAtTime(0.12, now);
-      gain.gain.linearRampToValueAtTime(0.001, now + 0.16);
-      osc.start(now);
-      osc.stop(now + 0.16);
-    } else if (type === 'success') {
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(523.25, now); // C5
-      osc.frequency.setValueAtTime(659.25, now + 0.08); // E5
-      osc.frequency.setValueAtTime(783.99, now + 0.16); // G5
-      gain.gain.setValueAtTime(0.12, now);
-      gain.gain.linearRampToValueAtTime(0.001, now + 0.35);
-      osc.start(now);
-      osc.stop(now + 0.35);
+      if (type === 'click') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(800, now);
+        osc.frequency.exponentialRampToValueAtTime(400, now + 0.05);
+        gain.gain.setValueAtTime(0.08, now);
+        gain.gain.linearRampToValueAtTime(0.001, now + 0.05);
+        osc.start(now);
+        osc.stop(now + 0.05);
+      } else if (type === 'alert') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(320, now);
+        osc.frequency.setValueAtTime(260, now + 0.08);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.linearRampToValueAtTime(0.001, now + 0.16);
+        osc.start(now);
+        osc.stop(now + 0.16);
+      } else if (type === 'success') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(523.25, now); // C5
+        osc.frequency.setValueAtTime(659.25, now + 0.08); // E5
+        osc.frequency.setValueAtTime(783.99, now + 0.16); // G5
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.linearRampToValueAtTime(0.001, now + 0.35);
+        osc.start(now);
+        osc.stop(now + 0.35);
+      }
+    } catch(err) {
+      // Audio autoplay policy blocked or not supported; fail gracefully
     }
   }
 
@@ -206,9 +210,18 @@ class SimulationApp {
 
   /* ---------------- DOM Initialization ---------------- */
   initDOM() {
-    // Top Bar Team ID
     const topTeam = document.getElementById("top-team-badge");
     if (topTeam) topTeam.textContent = this.state.teamId;
+
+    const teamInput = document.getElementById("login-team-id");
+    if (teamInput && this.state.teamId) {
+      teamInput.value = this.state.teamId;
+    }
+
+    const codeInput = document.getElementById("login-access-code");
+    if (codeInput && this.state.accessCode) {
+      codeInput.value = this.state.accessCode;
+    }
 
     this.updateTimerDisplay();
   }
@@ -221,15 +234,92 @@ class SimulationApp {
         e.preventDefault();
         const teamInput = document.getElementById("login-team-id").value.trim();
         const codeInput = document.getElementById("login-access-code").value.trim();
+        const errorMsg = document.getElementById("login-error-msg");
+
         if (!teamInput) {
-          alert("Please enter your TEAM ID.");
+          if (errorMsg) {
+            errorMsg.textContent = "PLEASE ENTER A VALID TEAM IDENTIFIER.";
+            errorMsg.style.display = "block";
+          }
           return;
         }
+
+        if (!codeInput) {
+          if (errorMsg) {
+            errorMsg.textContent = "PLEASE ENTER YOUR SECURITY ACCESS CODE.";
+            errorMsg.style.display = "block";
+          }
+          return;
+        }
+
+        if (errorMsg) errorMsg.style.display = "none";
+
         this.state.teamId = teamInput.toUpperCase();
-        this.state.accessCode = codeInput.toUpperCase() || "NEXUS-2026";
+        this.state.accessCode = codeInput.toUpperCase();
+
+        // Auto-register team in admin leaderboard if new
+        if (window.admin && Array.isArray(window.admin.teams)) {
+          const exists = window.admin.teams.find(t => t.id === this.state.teamId);
+          if (!exists) {
+            window.admin.teams.push({
+              id: this.state.teamId,
+              accessCode: this.state.accessCode,
+              currentCase: 1,
+              score: 0,
+              timerStatus: "Active",
+              lastActive: "Just now",
+              case1: 0,
+              case2: 0,
+              case3: 0
+            });
+            window.admin.saveTeams();
+          }
+        }
+
         this.saveState();
         this.playSound('click');
+        this.updateUI();
         this.switchScreen("dashboard");
+      });
+    }
+
+    // Dashboard Switch Team / Logout Button
+    const btnDashLogout = document.getElementById("btn-dash-logout");
+    if (btnDashLogout) {
+      btnDashLogout.addEventListener("click", () => {
+        this.playSound('click');
+        this.switchScreen("login");
+      });
+    }
+
+    // Top Bar Logout / Switch Team Button
+    const btnSwitchTeam = document.getElementById("btn-switch-team");
+    if (btnSwitchTeam) {
+      btnSwitchTeam.addEventListener("click", () => {
+        const confirmed = confirm("Switch team or return to login screen? Your case progress will remain saved.");
+        if (confirmed) {
+          this.playSound('click');
+          this.switchScreen("login");
+        }
+      });
+    }
+
+    // Dashboard Reset Entire Simulation Button
+    const btnDashResetAll = document.getElementById("btn-dash-reset-all");
+    if (btnDashResetAll) {
+      btnDashResetAll.addEventListener("click", () => {
+        const confirmed = confirm("WARNING: Reset the entire simulation?\n\nThis will clear all question answers, reset case scores to 0/30, and reset the 45-minute countdown clock back to 45:00.");
+        if (confirmed) {
+          this.pauseTimer();
+          localStorage.removeItem("nexus_sim_state");
+          this.state = this.loadState();
+          this.saveState();
+          this.playSound('alert');
+          this.updateTimerDisplay();
+          this.updateUI();
+          this.switchScreen("login");
+          this.showToast("Simulation progress has been fully reset.");
+        }
       });
     }
 
@@ -908,7 +998,7 @@ class SimulationApp {
                 </div>
 
                 ${connector ? `
-                  <div class="trail-connector link-active ${connector.status === 'danger' || connector.status === 'divergent' ? 'link-danger' : ''}" data-connector-idx="${i}" title="${connector.note}">
+                  <div class="trail-connector ${(activeCaseState.trailLinks || []).includes(i) ? 'link-selected' : 'link-active'} ${connector.status === 'danger' || connector.status === 'divergent' ? 'link-danger' : ''}" data-connector-idx="${i}" title="${connector.note}" style="cursor: pointer;">
                   </div>
                 ` : ''}
               `;
@@ -920,7 +1010,7 @@ class SimulationApp {
         <div class="trail-summary-card" id="trail-node-details">
           <div>
             <div style="font-family: var(--font-mono); font-size: 13px; font-weight: 700; color: var(--cold-blue);" id="trail-detail-title">
-              CLICK ANY NODE IN THE SEQUENCE TO INSPECT DETAILED EVIDENCE
+              CLICK ANY NODE OR CONNECTION IN THE SEQUENCE TO INSPECT EVIDENCE
             </div>
             <div style="font-size: 13.5px; color: var(--text-muted); margin-top: 4px;" id="trail-detail-text">
               Trace: LOGIN (Victor-07) → DEVICE (Remote R-07 Hijack) → FILE (Altered) → USER (Framed) → LOCATION (Spoofed)
@@ -967,14 +1057,43 @@ class SimulationApp {
       });
     });
 
+    // Attach Connector clicks
+    container.querySelectorAll(".trail-connector").forEach(connectorEl => {
+      connectorEl.addEventListener("click", () => {
+        const idx = parseInt(connectorEl.dataset.connectorIdx);
+        const trail = caseData.trails[idx];
+        if (!activeCaseState.trailLinks) activeCaseState.trailLinks = [];
+
+        if (activeCaseState.trailLinks.includes(idx)) {
+          activeCaseState.trailLinks = activeCaseState.trailLinks.filter(x => x !== idx);
+        } else {
+          activeCaseState.trailLinks.push(idx);
+          this.playSound('click');
+        }
+        this.saveState();
+
+        const detailTitle = document.getElementById("trail-detail-title");
+        const detailText = document.getElementById("trail-detail-text");
+        if (detailTitle) detailTitle.textContent = `TRAIL CONNECTION: ${trail.from} ➔ ${trail.to}`;
+        if (detailText) detailText.innerHTML = `<strong>Forensic Correlation:</strong> ${trail.note}`;
+
+        this.renderCase03(container, caseData);
+      });
+    });
+
     const btnResetTrail = document.getElementById("btn-reset-trail");
     if (btnResetTrail) {
       btnResetTrail.addEventListener("click", () => {
+        activeCaseState.trailLinks = [];
+        activeCaseState.activeNodes = [];
+        this.saveState();
         this.playSound('click');
         const detailTitle = document.getElementById("trail-detail-title");
         const detailText = document.getElementById("trail-detail-text");
         if (detailTitle) detailTitle.textContent = "TRAIL SELECTIONS RESET";
-        if (detailText) detailText.textContent = "Click any node above to inspect forensic evidence data.";
+        if (detailText) detailText.textContent = "Click any node or connection link above to inspect forensic evidence data.";
+        this.renderCase03(container, caseData);
+        this.showToast("Digital trail selections reset.");
       });
     }
 
@@ -1178,16 +1297,84 @@ class SimulationApp {
   handleResetCurrentSelections() {
     const currentCaseIdx = this.state.currentCase;
     const activeCaseState = this.state.caseState[currentCaseIdx];
-    if (activeCaseState.completed) return;
 
+    if (activeCaseState.completed) {
+      const confirmReset = confirm(
+        `Investigation 0${currentCaseIdx + 1} has already been submitted (${this.state.caseScores[currentCaseIdx]}/10 pts).\n\nDo you want to reset this case and clear your submitted answers so your team can re-attempt it? (This will reset your score for this case).`
+      );
+      if (!confirmReset) return;
+
+      activeCaseState.completed = false;
+      activeCaseState.feedback = null;
+      this.state.caseScores[currentCaseIdx] = 0;
+      this.state.score = this.calculateTotalScore();
+    }
+
+    // Reset answers
     activeCaseState.answers = {};
+
+    // Case 01 specific reset
+    if (currentCaseIdx === 0) {
+      this.markedRows.clear();
+      activeCaseState.markedRows = [];
+      this.selectedEvidenceRow = null;
+      const area = document.getElementById("row-inspection-area");
+      if (area) area.innerHTML = "";
+    }
+
+    // Case 02 specific reset
     if (currentCaseIdx === 1) {
       activeCaseState.bins = { verified: [], questionable: [] };
       activeCaseState.whyText = "";
       this.selectedForCompare = [];
     }
+
+    // Case 03 specific reset
+    if (currentCaseIdx === 2) {
+      activeCaseState.activeNodes = [];
+      activeCaseState.trailLinks = [];
+      const detailTitle = document.getElementById("trail-detail-title");
+      const detailText = document.getElementById("trail-detail-text");
+      if (detailTitle) detailTitle.textContent = "CLICK ANY NODE IN THE SEQUENCE TO INSPECT DETAILED EVIDENCE";
+      if (detailText) detailText.textContent = "Trace: LOGIN (Victor-07) → DEVICE (Remote R-07 Hijack) → FILE (Altered) → USER (Framed) → LOCATION (Spoofed)";
+    }
+
+    // Clear DOM input elements immediately
+    document.querySelectorAll(".q-input-elem").forEach(input => {
+      if (input.type === 'radio') {
+        input.checked = false;
+      } else if (input.tagName === 'SELECT') {
+        input.selectedIndex = 0;
+      } else {
+        input.value = '';
+      }
+    });
+
+    document.querySelectorAll(".q-input-elem-multi").forEach(input => {
+      input.checked = false;
+    });
+
     this.saveState();
+    this.playSound('click');
     this.renderCurrentCase();
+    this.updateUI();
+    this.showToast(`Case 0${currentCaseIdx + 1} selections reset.`);
+  }
+
+  showToast(message) {
+    let toast = document.getElementById("sim-toast");
+    if (!toast) {
+      toast = document.createElement("div");
+      toast.id = "sim-toast";
+      toast.className = "sim-toast";
+      document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.classList.add("show");
+    clearTimeout(this.toastTimeout);
+    this.toastTimeout = setTimeout(() => {
+      toast.classList.remove("show");
+    }, 2400);
   }
 
   /* ---------------- Rails & Left/Right UI ---------------- */
@@ -1524,8 +1711,10 @@ class SimulationApp {
           const note = prompt("Enter audit note for -2 points deduction:");
           window.admin.adjustTeamPoints(teamId, -2, note);
         } else if (action === 'reset') {
-          if (confirm(`Reset current case for ${teamId}?`)) {
-            window.admin.resetTeamCase(teamId, 1);
+          const targetTeam = window.admin.teams.find(t => t.id === teamId);
+          const currentCaseNum = targetTeam ? targetTeam.currentCase : 1;
+          if (confirm(`Reset Investigation 0${currentCaseNum} for ${teamId}?`)) {
+            window.admin.resetTeamCase(teamId, currentCaseNum);
           }
         } else if (action === 'unlock') {
           window.admin.forceUnlockNext(teamId);
