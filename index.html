@@ -126,9 +126,6 @@
           <button id="btn-dash-logout" class="btn btn-secondary" style="flex: 1 1 180px; padding: 16px; font-size: 13px;">
             SWITCH TEAM / LOGOUT
           </button>
-          <button id="btn-dash-reset-all" class="btn btn-outline-red" style="padding: 16px; font-size: 13px;" title="Reset entire simulation and score">
-            RESET ALL
-          </button>
         </div>
       </div>
     </div>
@@ -150,6 +147,10 @@
           <div class="case-nav-title" id="top-case-title">
             CASE 01 // THE BREACH REPORT
           </div>
+          <div class="threat-level-badge" id="top-threat-badge">
+            <span class="threat-dot"></span>
+            <span>DEFCON 2 // ELEVATED THREAT</span>
+          </div>
         </div>
 
         <div class="top-bar-right">
@@ -164,8 +165,11 @@
 
           <!-- Utility Toggles -->
           <div style="display: flex; gap: 6px;">
+            <button class="btn btn-secondary" id="btn-toggle-shell" style="padding: 6px 10px; font-size: 10.5px;" title="Open Forensic Shell (Ctrl + ~)">
+              &gt;_ SHELL
+            </button>
             <button class="btn btn-secondary" id="btn-toggle-audio" style="padding: 6px 10px; font-size: 10.5px;">
-              SFX: ACTIVE
+              SFX: ON
             </button>
             <button class="btn btn-secondary" id="btn-toggle-crt" style="padding: 6px 10px; font-size: 10.5px;">
               CRT: ON
@@ -253,8 +257,8 @@
           <button class="btn btn-secondary" id="btn-back-dashboard">
             ◀ DASHBOARD
           </button>
-          <button class="btn btn-secondary" id="btn-reset-selection">
-            RESET SELECTIONS
+          <button class="btn btn-secondary" id="btn-reset-selection" title="Clear unsaved draft selections in active case">
+            CLEAR DRAFT
           </button>
         </div>
 
@@ -302,9 +306,12 @@
           </div>
         </div>
 
-        <div style="display: flex; gap: 14px; justify-content: center;">
+        <div style="display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;">
           <button class="btn btn-primary" id="btn-summary-return" style="padding: 14px 28px; font-size: 14px;">
             RETURN TO CONTROL CENTRE ➔
+          </button>
+          <button class="btn btn-nexus" id="btn-print-report" style="padding: 14px 28px; font-size: 14px;">
+            📄 EXPORT OFFICIAL INCIDENT REPORT (PDF/PRINT)
           </button>
         </div>
       </div>
@@ -364,6 +371,60 @@
         <button class="btn btn-secondary modal-close-btn">EXIT ADMIN</button>
       </div>
     </div>
+  </div>
+
+  <!-- ====================================================================
+       MODALS: SECURITY ADVISORY / INTEGRITY VIOLATION ALERT
+       ==================================================================== -->
+  <div class="modal-backdrop" id="modal-security-advisory">
+    <div class="modal-window" style="max-width: 520px; border-top: 3px solid var(--neon-red);">
+      <div class="modal-header" style="background: rgba(255, 71, 87, 0.1);">
+        <div class="modal-title" style="color: var(--neon-red); font-weight: 800; display: flex; align-items: center; gap: 8px;">
+          <span>⚠</span>
+          <span>FORENSIC INTEGRITY PROTOCOL NOTICE</span>
+        </div>
+        <button class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <div style="font-family: var(--font-mono); font-size: 13px; line-height: 1.6; color: var(--text-primary); margin-bottom: 16px;" id="security-advisory-text">
+          Direct browser debugging, inspection tools, or unauthorized shortcuts have been detected.
+        </div>
+        <div style="background: rgba(0,0,0,0.5); border: 1px solid var(--border-card); border-radius: 4px; padding: 12px; font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);">
+          <div style="color: var(--electric-yellow); margin-bottom: 4px;">// SYSTEM AUDIT NOTE:</div>
+          This simulation uses realistic client-side forensics. All answers are cryptographically verified and attempts are strictly logged to the Judges' Evaluation server. Continued tampering may be flagged for disqualification.
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content: flex-end;">
+        <button class="btn btn-secondary modal-close-btn" id="btn-ack-advisory" style="border-color: var(--neon-red); color: var(--neon-red);">ACKNOWLEDGE &amp; RESUME</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ====================================================================
+       SLIDE-UP FORENSIC COMMAND SHELL
+       ==================================================================== -->
+  <div id="forensic-shell-drawer" class="forensic-shell-drawer">
+    <div class="shell-header">
+      <div class="shell-title">
+        <span class="shell-dot"></span>
+        <span>&gt;_ NEXUS FORENSIC SHELL v4.2 // SECURITY CLEARANCE LEVEL 3</span>
+      </div>
+      <div style="display: flex; gap: 10px; align-items: center;">
+        <span style="font-size: 11px; color: var(--text-dim); font-family: var(--font-mono);">Shortcut: [Ctrl + ~]</span>
+        <button class="btn btn-secondary" id="btn-close-shell" style="padding: 3px 8px; font-size: 11px; line-height: 1;">✕</button>
+      </div>
+    </div>
+    <div class="shell-output" id="shell-output">
+      <div class="shell-line sys">INFINITY NEXUS DFIR FORENSIC ENGINE [v4.2.108 - KERNEL-SEC-MONITOR]</div>
+      <div class="shell-line sys">Incident Response Telemetry Initialized. All shell commands recorded to audit trail.</div>
+      <div class="shell-line sys">Type <span class="cmd-highlight">help</span> for a list of authorized forensic commands.</div>
+    </div>
+    <form id="shell-input-form" class="shell-input-bar">
+      <span class="shell-prompt">forensics@nexus-dfir:~$</span>
+      <input type="text" id="shell-cmd-input" class="shell-input" placeholder="Type a command (e.g. help, whoami, status, hash EV-01, trace 10.240.12.8, clear)..." autocomplete="off" spellcheck="false">
+      <button type="submit" class="btn btn-secondary" style="padding: 4px 10px; font-size: 11px; font-family: var(--font-mono);">EXEC</button>
+    </form>
   </div>
 
   <!-- Footer Discreet Admin Trigger -->

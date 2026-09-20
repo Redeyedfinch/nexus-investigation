@@ -101,6 +101,14 @@ class SimulationApp {
         gain.gain.linearRampToValueAtTime(0.001, now + 0.05);
         osc.start(now);
         osc.stop(now + 0.05);
+      } else if (type === 'type') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1400, now);
+        osc.frequency.exponentialRampToValueAtTime(600, now + 0.02);
+        gain.gain.setValueAtTime(0.04, now);
+        gain.gain.linearRampToValueAtTime(0.001, now + 0.02);
+        osc.start(now);
+        osc.stop(now + 0.02);
       } else if (type === 'alert') {
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(320, now);
@@ -109,6 +117,15 @@ class SimulationApp {
         gain.gain.linearRampToValueAtTime(0.001, now + 0.16);
         osc.start(now);
         osc.stop(now + 0.16);
+      } else if (type === 'alarm') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(660, now);
+        osc.frequency.setValueAtTime(880, now + 0.1);
+        osc.frequency.setValueAtTime(660, now + 0.2);
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.linearRampToValueAtTime(0.001, now + 0.3);
+        osc.start(now);
+        osc.stop(now + 0.3);
       } else if (type === 'success') {
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(523.25, now); // C5
@@ -124,21 +141,31 @@ class SimulationApp {
     }
   }
 
-  /* ---------------- Timer Management ---------------- */
+  /* ---------------- Timer Management (with Wall-Clock Drift Protection) ---------------- */
   startTimer() {
     if (this.timerInterval) clearInterval(this.timerInterval);
     this.state.timerRunning = true;
+    if (!this.state.wallClockStart) {
+      this.state.wallClockStart = Date.now();
+      this.state.totalDuration = this.state.timerSeconds || 2700;
+    }
     this.saveState();
 
     this.timerInterval = setInterval(() => {
-      if (this.state.timerSeconds > 0) {
+      if (this.state.wallClockStart) {
+        const elapsed = Math.floor((Date.now() - this.state.wallClockStart) / 1000);
+        this.state.timerSeconds = Math.max(0, (this.state.totalDuration || 2700) - elapsed);
+      } else if (this.state.timerSeconds > 0) {
         this.state.timerSeconds--;
+      }
+
+      if (this.state.timerSeconds <= 0) {
+        this.handleTimeExpired();
+      } else {
         this.updateTimerDisplay();
         if (this.state.timerSeconds % 10 === 0) {
           this.saveState();
         }
-      } else {
-        this.handleTimeExpired();
       }
     }, 1000);
     this.updateTimerDisplay();
@@ -147,6 +174,7 @@ class SimulationApp {
   pauseTimer() {
     if (this.timerInterval) clearInterval(this.timerInterval);
     this.state.timerRunning = false;
+    this.state.wallClockStart = null;
     this.saveState();
     this.updateTimerDisplay();
   }
@@ -304,25 +332,6 @@ class SimulationApp {
       });
     }
 
-    // Dashboard Reset Entire Simulation Button
-    const btnDashResetAll = document.getElementById("btn-dash-reset-all");
-    if (btnDashResetAll) {
-      btnDashResetAll.addEventListener("click", () => {
-        const confirmed = confirm("WARNING: Reset the entire simulation?\n\nThis will clear all question answers, reset case scores to 0/30, and reset the 45-minute countdown clock back to 45:00.");
-        if (confirmed) {
-          this.pauseTimer();
-          localStorage.removeItem("nexus_sim_state");
-          this.state = this.loadState();
-          this.saveState();
-          this.playSound('alert');
-          this.updateTimerDisplay();
-          this.updateUI();
-          this.switchScreen("login");
-          this.showToast("Simulation progress has been fully reset.");
-        }
-      });
-    }
-
     // Dashboard Begin Button
     const btnBegin = document.getElementById("btn-begin-investigation");
     if (btnBegin) {
@@ -340,7 +349,7 @@ class SimulationApp {
     if (audioToggle) {
       audioToggle.addEventListener("click", () => {
         this.audioMuted = !this.audioMuted;
-        audioToggle.textContent = this.audioMuted ? "SFX: MUTED" : "SFX: ACTIVE";
+        audioToggle.textContent = this.audioMuted ? "SFX: MUTED" : "SFX: ON";
         audioToggle.classList.toggle("off", this.audioMuted);
       });
     }
@@ -351,6 +360,36 @@ class SimulationApp {
       crtToggle.addEventListener("click", () => {
         document.body.classList.toggle("crt-off");
         crtToggle.classList.toggle("off", document.body.classList.contains("crt-off"));
+      });
+    }
+
+    // Forensic Shell Drawer Toggles
+    const btnToggleShell = document.getElementById("btn-toggle-shell");
+    if (btnToggleShell) {
+      btnToggleShell.addEventListener("click", () => {
+        this.toggleForensicShell();
+      });
+    }
+
+    const btnCloseShell = document.getElementById("btn-close-shell");
+    if (btnCloseShell) {
+      btnCloseShell.addEventListener("click", () => {
+        this.toggleForensicShell(false);
+      });
+    }
+
+    const shellForm = document.getElementById("shell-input-form");
+    if (shellForm) {
+      shellForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const input = document.getElementById("shell-cmd-input");
+        if (input) {
+          const val = input.value.trim();
+          if (val) {
+            this.handleShellCommand(val);
+            input.value = "";
+          }
+        }
       });
     }
 
@@ -385,10 +424,10 @@ class SimulationApp {
       });
     }
 
+    // Clear Draft Selections (only for active unsubmitted case)
     const btnReset = document.getElementById("btn-reset-selection");
     if (btnReset) {
       btnReset.addEventListener("click", () => {
-        this.playSound('click');
         this.handleResetCurrentSelections();
       });
     }
@@ -402,12 +441,40 @@ class SimulationApp {
       });
     });
 
-    // Admin Console Shortcut: Ctrl+Shift+A or Footer Link
+    // Keyboard Shortcuts & Anti-Inspection Guard
     window.addEventListener("keydown", (e) => {
+      // 1. Organiser Console: Ctrl+Shift+A
       if (e.ctrlKey && e.shiftKey && (e.key === 'A' || e.key === 'a')) {
         e.preventDefault();
         this.openAdminModal();
+        return;
       }
+
+      // 2. Forensic Shell Toggle: Ctrl + ~ or Ctrl + `
+      if (e.ctrlKey && (e.key === '`' || e.key === '~')) {
+        e.preventDefault();
+        this.toggleForensicShell();
+        return;
+      }
+
+      // 3. Cheating / DevTools Shortcut Guard
+      const isF12 = e.key === 'F12';
+      const isDevTools = e.ctrlKey && e.shiftKey && ['I', 'i', 'J', 'j', 'C', 'c'].includes(e.key);
+      const isViewSource = e.ctrlKey && (e.key === 'U' || e.key === 'u');
+
+      if (isF12 || isDevTools || isViewSource) {
+        e.preventDefault();
+        this.playSound('alarm');
+        this.showSecurityAdvisory("SECURITY ADVISORY // FORENSIC PROTOCOL ACTIVE: Direct source code inspection and console tools are restricted during the official simulation. Use the integrated Forensic Shell (>_ SHELL) for authorized system queries.");
+      }
+    });
+
+    // Right-Click Context Menu Guard
+    window.addEventListener("contextmenu", (e) => {
+      if (window.admin && window.admin.isAuthenticated) return;
+      e.preventDefault();
+      this.playSound('alert');
+      this.showToast("Forensic Security: Right-click inspection disabled during round.");
     });
 
     const adminTrigger = document.getElementById("btn-admin-console-trigger");
@@ -423,6 +490,15 @@ class SimulationApp {
       btnReturnSummary.addEventListener("click", () => {
         this.playSound('click');
         this.switchScreen("dashboard");
+      });
+    }
+
+    // Export / Print Official Incident Report
+    const btnPrintReport = document.getElementById("btn-print-report");
+    if (btnPrintReport) {
+      btnPrintReport.addEventListener("click", () => {
+        this.playSound('click');
+        window.print();
       });
     }
   }
@@ -706,6 +782,19 @@ class SimulationApp {
         <div style="background: rgba(255,255,255,0.03); padding: 10px; border-left: 2px solid var(--cold-blue); font-size: 13px;">
           <strong style="color: var(--cold-blue);">Forensic Log Analysis:</strong> ${item.details}
         </div>
+        <div class="custody-meta-bar" style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.4); border: 1px dashed rgba(62,166,255,0.3); border-radius: 4px; padding: 8px 12px; margin-top: 10px; font-family: var(--font-mono); font-size: 11px;">
+          <div>
+            <span style="color: var(--text-dim);">SHA-256 HASH:</span>
+            <span style="color: var(--cold-blue); font-weight: 600;">e3b0c442...${item.id.replace('-','')}79a1f</span>
+          </div>
+          <div>
+            <span style="color: var(--text-dim);">CUSTODIAN:</span>
+            <span style="color: var(--terminal-green);">SHIELD SEC-OFFICER-491</span>
+          </div>
+          <div style="color: var(--neon-cyan);">
+            ● CHAIN OF CUSTODY VERIFIED
+          </div>
+        </div>
       </div>
     `;
   }
@@ -755,6 +844,10 @@ class SimulationApp {
               </div>
               <div class="card-desc">
                 ${ev.description}
+              </div>
+              <div class="custody-meta-bar" style="margin-top: 8px; margin-bottom: 8px; font-size: 10px; padding: 4px 8px; background: rgba(0,0,0,0.3); border-radius: 3px; display: flex; justify-content: space-between; align-items: center; font-family: var(--font-mono);">
+                <span style="color: var(--text-dim);">SHA256: <span style="color: var(--cold-blue);">${ev.id === 'EV-02' ? '4a5e1e...deda33b' : (ev.id === 'EV-01' ? '9f86d0...0f00a08' : 'b94d27...e2efcde')}</span></span>
+                <span style="color: ${ev.id === 'EV-02' ? 'var(--neon-red)' : 'var(--terminal-green)'}; font-weight: 700;">${ev.id === 'EV-02' ? '● ANOMALY' : '● VERIFIED'}</span>
               </div>
               <div class="card-actions-bar">
                 <button class="btn btn-outline-blue btn-view-fullscreen" data-ev-id="${ev.id}">
@@ -1146,7 +1239,16 @@ class SimulationApp {
     }
     if (detailText) {
       const entries = Object.entries(node.data).map(([k, v]) => `<strong>${k}:</strong> ${v}`).join(' | ');
-      detailText.innerHTML = `${node.description}<br><span style="font-family: var(--font-mono); font-size: 12px; color: var(--text-highlight);">${entries}</span>`;
+      detailText.innerHTML = `
+        <div style="margin-bottom: 8px;">${node.description}</div>
+        <div style="font-family: var(--font-mono); font-size: 12px; color: var(--text-highlight); margin-bottom: 8px;">${entries}</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; font-family: var(--font-mono); font-size: 10.5px; background: rgba(0,0,0,0.3); padding: 6px 10px; border-radius: 3px; border-left: 2px solid var(--electric-yellow);">
+          <span style="color: var(--text-dim);">NODE PROVENANCE:</span>
+          <span style="color: var(--electric-yellow);">${(node.stage || 'STAGE').toUpperCase()} AUDIT LOG</span>
+          <span style="color: var(--text-dim);">INTEGRITY:</span>
+          <span style="color: var(--terminal-green);">TAMPER-SEALED (HMAC-SHA256)</span>
+        </div>
+      `;
     }
   }
 
@@ -1258,6 +1360,19 @@ class SimulationApp {
       return;
     }
 
+    // Single-attempt pre-submission completeness warning
+    const unansweredCount = caseData.questions.filter(q => {
+      const a = activeCaseState.answers[q.id];
+      return a === undefined || a === null || a === '' || (Array.isArray(a) && a.length === 0);
+    }).length;
+
+    if (unansweredCount > 0) {
+      const confirmed = confirm(
+        `FORENSIC SUBMISSION ADVISORY:\nYou have left ${unansweredCount} of ${caseData.questions.length} question objectives unanswered.\n\nBecause this simulation enforces a strict 1-ATTEMPT policy, any unanswered questions will be permanently scored 0 points.\n\nProceed with final submission?`
+      );
+      if (!confirmed) return;
+    }
+
     let earnedPoints = 0;
     const questionAuditList = [];
 
@@ -1268,32 +1383,41 @@ class SimulationApp {
       let questionBase = 0;
       let isCorrect = false;
 
-      if (q.type === 'select' || q.type === 'radio') {
-        if (userAnswer === q.correct) {
+      if (window.nexusCrypto) {
+        const verifyRes = window.nexusCrypto.verify(q, userAnswer);
+        if (verifyRes === true || verifyRes === 2) {
           questionBase = q.points;
           isCorrect = true;
+        } else if (verifyRes === 1) {
+          questionBase = 1;
+          isCorrect = false;
         }
-      } else if (q.type === 'multiselect') {
-        if (Array.isArray(userAnswer)) {
-          const isExactMatch = q.correct.every(item => userAnswer.includes(item)) && userAnswer.length === q.correct.length;
-          if (isExactMatch) {
+      } else {
+        if (q.type === 'select' || q.type === 'radio') {
+          if (userAnswer === q.correct) {
             questionBase = q.points;
             isCorrect = true;
-          } else {
-            // Partial credit if at least one correct
-            const matching = q.correct.filter(item => userAnswer.includes(item)).length;
-            if (matching > 0) questionBase = 1;
           }
-        }
-      } else if (q.type === 'text') {
-        if (userAnswer && typeof userAnswer === 'string') {
-          const lower = userAnswer.toLowerCase();
-          const matchCount = q.keywords.filter(kw => lower.includes(kw)).length;
-          if (matchCount >= 2) {
-            questionBase = q.points;
-            isCorrect = true;
-          } else if (matchCount === 1) {
-            questionBase = 1;
+        } else if (q.type === 'multiselect') {
+          if (Array.isArray(userAnswer)) {
+            const isExactMatch = q.correct && q.correct.every(item => userAnswer.includes(item)) && userAnswer.length === q.correct.length;
+            if (isExactMatch) {
+              questionBase = q.points;
+              isCorrect = true;
+            } else if (q.correct && q.correct.some(item => userAnswer.includes(item))) {
+              questionBase = 1;
+            }
+          }
+        } else if (q.type === 'text') {
+          if (userAnswer && typeof userAnswer === 'string') {
+            const lower = userAnswer.toLowerCase();
+            const matchCount = (q.keywords || []).filter(kw => lower.includes(kw)).length;
+            if (matchCount >= 2) {
+              questionBase = q.points;
+              isCorrect = true;
+            } else if (matchCount === 1) {
+              questionBase = 1;
+            }
           }
         }
       }
@@ -1309,11 +1433,13 @@ class SimulationApp {
       const awardedForQ = Math.max(0, questionBase - penalty);
       earnedPoints += awardedForQ;
 
+      const decodedAns = window.nexusCrypto ? window.nexusCrypto.getDecodedAnswer(q) : (q.correct || '');
+
       questionAuditList.push({
         qId: q.id,
         qText: q.text,
         userAnswer: userAnswer !== undefined && userAnswer !== null && userAnswer !== '' ? userAnswer : "NO_ANSWER",
-        correctAnswer: q.correct || (q.keywords ? q.keywords.join(', ') : ""),
+        correctAnswer: decodedAns,
         isCorrect: isCorrect,
         points: awardedForQ,
         maxPoints: q.points,
@@ -1494,6 +1620,13 @@ class SimulationApp {
         this.playSound('click');
         this.renderCurrentCase();
         this.updateUI();
+      });
+    });
+
+    list.querySelectorAll(".case-progress-item.locked").forEach(item => {
+      item.addEventListener("click", () => {
+        this.playSound('alert');
+        this.showToast("Case Locked: Complete and submit the preceding investigation first.");
       });
     });
   }
@@ -2120,6 +2253,205 @@ class SimulationApp {
         </tr>
       `;
     }
+  }
+
+  /* ---------------- Forensic Shell & Security Advisory ---------------- */
+  showSecurityAdvisory(message) {
+    const modal = document.getElementById("modal-security-advisory");
+    const textEl = document.getElementById("security-advisory-text");
+    if (modal) {
+      if (textEl && message) textEl.textContent = message;
+      modal.classList.add("active");
+    } else {
+      alert(message || "SECURITY ADVISORY // FORENSIC INTEGRITY PROTOCOL ACTIVE");
+    }
+  }
+
+  toggleForensicShell(force) {
+    const drawer = document.getElementById("forensic-shell-drawer");
+    if (!drawer) return;
+    const isOpen = drawer.classList.contains("open");
+    const shouldOpen = typeof force === "boolean" ? force : !isOpen;
+    if (shouldOpen) {
+      drawer.classList.add("open");
+      const input = document.getElementById("shell-cmd-input");
+      if (input) setTimeout(() => input.focus(), 100);
+      this.playSound("click");
+    } else {
+      drawer.classList.remove("open");
+      this.playSound("click");
+    }
+  }
+
+  handleShellCommand(rawCmd) {
+    const output = document.getElementById("shell-output");
+    if (!output) return;
+
+    const trimmed = rawCmd.trim();
+    if (!trimmed) return;
+
+    // Append user input line
+    const userLine = document.createElement("div");
+    userLine.className = "shell-line in";
+    userLine.textContent = `forensics@nexus-dfir:~$ ${trimmed}`;
+    output.appendChild(userLine);
+
+    const parts = trimmed.split(/\s+/);
+    const cmd = parts[0].toLowerCase();
+    const arg = parts.slice(1).join(" ");
+
+    const appendResp = (text, cls = "") => {
+      const respLine = document.createElement("div");
+      respLine.className = `shell-line ${cls}`;
+      respLine.innerHTML = text;
+      output.appendChild(respLine);
+    };
+
+    switch(cmd) {
+      case "help":
+      case "?":
+        appendResp("<strong>AUTHORIZED DFIR INVESTIGATION COMMANDS (LEVEL 3):</strong>", "sys");
+        appendResp("  <span class='cmd-highlight'>whoami</span>          Display active investigator credentials and terminal clearance");
+        appendResp("  <span class='cmd-highlight'>status</span>          Incident response threat level, case progress, and clock state");
+        appendResp("  <span class='cmd-highlight'>hash &lt;artifact&gt;</span>   Verify SHA-256 HMAC integrity checksum (e.g. hash EV-01, hash logs)");
+        appendResp("  <span class='cmd-highlight'>trace &lt;ip&gt;</span>       Perform packet route inspection on internal/external IP tunnels");
+        appendResp("  <span class='cmd-highlight'>cctv</span>            Query Sector 7 optical surveillance &amp; presence sensor status");
+        appendResp("  <span class='cmd-highlight'>filter &lt;term&gt;</span>    Search active case records for matching keyword");
+        appendResp("  <span class='cmd-highlight'>decrypt &lt;token&gt;</span>  Run timeline cipher analysis on intercepted tokens");
+        appendResp("  <span class='cmd-highlight'>defcon</span>          Display current timeline alert status and protocols");
+        appendResp("  <span class='cmd-highlight'>clear</span>           Clear terminal buffer");
+        this.playSound("type");
+        break;
+
+      case "whoami":
+        appendResp("<strong>TERMINAL IDENTITY AUDIT:</strong>", "sys");
+        appendResp(`  CALLSIGN   : <span style="color: var(--electric-yellow);">${this.state.teamId || "INVESTIGATOR-07"}</span>`);
+        appendResp("  CLEARANCE  : LEVEL 3 FORENSIC EXAMINER (RESTRICTED EVALUATION)");
+        appendResp("  STATION    : SEC-STATION-4 // NEXUS TERMINAL N-04");
+        appendResp("  SESSION IP : 10.244.18.91 (SEC-VLAN-04)");
+        appendResp(`  REMAINING  : ${this.formatTime(this.state.timerSeconds)} // WALL-CLOCK HARD LOCK ACTIVE`);
+        this.playSound("type");
+        break;
+
+      case "status":
+      case "defcon":
+        appendResp("<strong>DEFCON 2 // ELEVATED TIMELINE ANOMALY</strong>", "warn");
+        appendResp(`  ACTIVE CASE  : Investigation 0${this.state.currentCase + 1} of 03 (${this.data.cases[this.state.currentCase]?.shortTitle || ''})`);
+        appendResp(`  SCORE AUDIT  : Case 1: ${this.state.caseScores[0]}/10 | Case 2: ${this.state.caseScores[1]}/10 | Case 3: ${this.state.caseScores[2]}/10`);
+        appendResp(`  TOTAL SCORE  : <span style="color: var(--text-highlight);">${this.calculateTotalScore()}/30 Points</span>`);
+        appendResp("  LOCKOUT POL. : STRICT SINGLE-ATTEMPT PER CASE (JUDGES WEBHOOK LIVE)");
+        appendResp(`  SUBMISSIONS  : ${this.state.caseState.filter(c => c.completed).length}/3 Cases Finalized`);
+        this.playSound("type");
+        break;
+
+      case "hash":
+        if (!arg) {
+          appendResp("Usage: <span class='cmd-highlight'>hash &lt;evidence-id|artifact&gt;</span> (e.g. hash EV-01, hash EV-02, hash C01-LOGS)", "warn");
+        } else {
+          const upperArg = arg.toUpperCase();
+          appendResp(`CALCULATING SHA-256 CRYPTOGRAPHIC CHECKSUM FOR [${upperArg}]...`, "sys");
+          if (upperArg.includes("EV-01") || upperArg.includes("CCTV")) {
+            appendResp("  [SHA-256] : <span style='color: var(--cold-blue);'>9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08</span>");
+            appendResp("  CUSTODIAN : Shield Cyber Surveillance Unit // Sgt. Barnes");
+            appendResp("  ACQUIRED  : 21:42:00 UTC (Camera 04, Sector 7 Terminal Room)");
+            appendResp("  STATUS    : <span style='color: var(--terminal-green);'>[AUTHENTIC // ZERO FRAME INTERPOLATION]</span>");
+          } else if (upperArg.includes("EV-02") || upperArg.includes("SCREENSHOT")) {
+            appendResp("  [SHA-256] : <span style='color: var(--cold-blue);'>4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b</span>");
+            appendResp("  CUSTODIAN : Internal Security Daemon (Auto-Dump)");
+            appendResp("  STATUS    : <span style='color: var(--neon-red);'>[CRITICAL ANOMALY // SYNTHETIC RASTER &amp; STRIPPED EXIF]</span>", "err");
+            appendResp("  NOTE      : Direct conflict with CCTV EV-01 presence sensors.");
+          } else if (upperArg.includes("EV-03") || upperArg.includes("MESSAGE")) {
+            appendResp("  [SHA-256] : <span style='color: var(--cold-blue);'>b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9</span>");
+            appendResp("  CUSTODIAN : Comms Daemon (Internal Relay)");
+            appendResp("  STATUS    : <span style='color: var(--terminal-green);'>[AUTHENTIC SYSTEM BROADCAST // NO SIGNATURE CORRUPTION]</span>");
+          } else {
+            let hVal = 0;
+            for (let i = 0; i < upperArg.length; i++) hVal = (hVal * 31 + upperArg.charCodeAt(i)) & 0xffffffff;
+            const pseudoHex = Math.abs(hVal).toString(16).padStart(8, '0') + "8f12c9b4e6d308a1b2c3d4e5f67890ab";
+            appendResp(`  [SHA-256] : <span style='color: var(--cold-blue);'>${pseudoHex}</span>`);
+            appendResp("  STATUS    : <span style='color: var(--terminal-green);'>[CHAIN OF CUSTODY VERIFIED // TAMPER-SEALED]</span>");
+          }
+        }
+        this.playSound("type");
+        break;
+
+      case "trace":
+        if (!arg) {
+          appendResp("Usage: <span class='cmd-highlight'>trace &lt;ip-address&gt;</span> (e.g. trace 10.240.12.8 or trace 192.168.1.105)", "warn");
+        } else {
+          appendResp(`TRACING ROUTE TO TARGET [${arg}]...`, "sys");
+          appendResp("  HOP 1: 10.244.18.1 (Gateway-Core-Alpha) [0.3ms]");
+          appendResp("  HOP 2: 172.16.8.50 (VLAN-Isolation-Firewall) [0.8ms]");
+          appendResp("  HOP 3: 192.168.1.1 (Subnet Edge Router) [1.9ms]");
+          appendResp(`  TARGET RESOLUTION: [${arg}]`);
+          if (arg.includes("105") || arg.includes("R-07") || arg.includes("10.240.12.8")) {
+            appendResp("  DEVICE PROFILE : <span style='color: var(--neon-red); font-weight: 700;'>Remote Admin Device R-07</span>", "err");
+            appendResp("  PHYSICAL LOC   : Outside Sector 7 Perimeter (Remote Subnet Bridge)");
+            appendResp("  ANOMALY        : Bypassed biometric turnstile during Terminal N-04 active session.");
+          } else {
+            appendResp("  DEVICE PROFILE : Nexus Authorized Internal Host (VLAN 4)");
+            appendResp("  STATUS         : Regular telemetry endpoint.");
+          }
+        }
+        this.playSound("type");
+        break;
+
+      case "cctv":
+        appendResp("<strong>SECTOR 7 CAMERA &amp; BIOMETRIC SURVEILLANCE TELEMETRY:</strong>", "sys");
+        appendResp("  CAM-01 (Sector 7 Main Gate)     : [ONLINE] Normal traffic logged until 21:30 UTC");
+        appendResp("  CAM-04 (Terminal N-04 Enclosure): [ONLINE] Timestamp: 21:42:00 UTC -> <span style='color: var(--cold-blue);'>ZERO HUMAN OCCUPANCY</span>");
+        appendResp("  BIOMETRIC SEAT SENSOR N-04      : [STATUS: 0.0 KG PRESSURE] Room was physically vacant");
+        appendResp("  FORENSIC CONCLUSION            : Physical presence claims in Screenshot EV-02 are fabricated.", "warn");
+        this.playSound("type");
+        break;
+
+      case "filter":
+        if (!arg) {
+          appendResp("Usage: <span class='cmd-highlight'>filter &lt;keyword&gt;</span> (e.g. filter R-07, filter alter, filter Doom)", "warn");
+        } else {
+          appendResp(`SCANNING ACTIVE EVIDENCE REPOSITORY FOR KEYWORD: "<span style='color: var(--electric-yellow);'>${arg}</span>"...`);
+          if (this.state.currentCase === 0) {
+            const matches = this.data.cases[0].evidence.filter(e =>
+              e.device.toLowerCase().includes(arg.toLowerCase()) ||
+              e.event.toLowerCase().includes(arg.toLowerCase()) ||
+              e.user.toLowerCase().includes(arg.toLowerCase()) ||
+              e.details.toLowerCase().includes(arg.toLowerCase())
+            );
+            appendResp(`FOUND <span style='color: var(--terminal-green);'>${matches.length}</span> MATCHING EVIDENCE RECORD(S):`);
+            matches.forEach(m => {
+              appendResp(`  [${m.time}] ${m.id}: ${m.event} (${m.device}) - ${m.status}`);
+            });
+          } else {
+            appendResp("Evidence filter executed. Consult the active investigation panel for visual cross-referencing.");
+          }
+        }
+        this.playSound("type");
+        break;
+
+      case "decrypt":
+        appendResp("INITIALIZING AES-256 FORENSIC DECRYPTION ENGINE...", "sys");
+        appendResp(`  TARGET TOKEN : ${arg || "NEXUS-INTERCEPT-TOKEN"}`);
+        appendResp("  HMAC SHA-256 : INTEGRITY VERIFIED");
+        appendResp("  PLAINTEXT    : <span style='color: var(--terminal-green);'>\"REMOTE DEVICE R-07 INJECTED FILE WRITE INTO SESSION N-04. SPOOFED USER: DOCTOR DOOM.\"</span>");
+        this.playSound("type");
+        break;
+
+      case "clear":
+      case "cls":
+        output.innerHTML = `
+          <div class="shell-line sys">INFINITY NEXUS DFIR FORENSIC ENGINE [v4.2.108 - KERNEL-SEC-MONITOR]</div>
+          <div class="shell-line sys">Buffer cleared. Ready for DFIR commands. Type <span class="cmd-highlight">help</span> for command directory.</div>
+        `;
+        this.playSound("click");
+        return;
+
+      default:
+        appendResp(`Command not recognized: "<span style='color: var(--neon-red);'>${trimmed}</span>". Type <span class='cmd-highlight'>help</span> for valid commands.`, "err");
+        this.playSound("alert");
+        break;
+    }
+
+    output.scrollTop = output.scrollHeight;
   }
 }
 

@@ -1,4 +1,53 @@
 /**
+ * FORENSIC CRYPTOGRAPHIC PROTOCOL
+ * Integrity Check & Obfuscated Answer Verification Engine
+ */
+window.nexusCrypto = {
+  verify: function(q, userAnswer) {
+    if (!userAnswer) return false;
+    if (q.type === 'select' || q.type === 'radio') {
+      try {
+        const encoded = btoa(encodeURIComponent(userAnswer.trim()));
+        return encoded === q.authHash;
+      } catch(e) { return false; }
+    } else if (q.type === 'multiselect') {
+      if (!Array.isArray(userAnswer) || userAnswer.length === 0) return false;
+      try {
+        const userHashes = userAnswer.map(a => btoa(encodeURIComponent(a.trim()))).sort();
+        const correctHashes = q.authHash.split('::').sort();
+        if (userHashes.join('::') === correctHashes.join('::')) return true;
+        const matchCount = userHashes.filter(h => correctHashes.includes(h)).length;
+        if (matchCount > 0) return 1;
+        return false;
+      } catch(e) { return false; }
+    } else if (q.type === 'text') {
+      if (typeof userAnswer !== 'string') return 0;
+      const lower = userAnswer.toLowerCase();
+      const matchCount = (q.kwTokens || []).filter(tok => {
+        try { return lower.includes(decodeURIComponent(atob(tok))); } catch(e) { return false; }
+      }).length;
+      return matchCount >= 2 ? 2 : (matchCount === 1 ? 1 : 0);
+    }
+    return false;
+  },
+  getDecodedAnswer: function(q) {
+    if (!q) return '';
+    if (q.authHash) {
+      try {
+        const parts = q.authHash.split('::');
+        return parts.map(p => decodeURIComponent(atob(p))).join(', ');
+      } catch(e) { return ''; }
+    }
+    if (q.kwTokens) {
+      try {
+        return q.kwTokens.map(t => decodeURIComponent(atob(t))).join(' / ');
+      } catch(e) { return ''; }
+    }
+    return '';
+  }
+};
+
+/**
  * MARVEL vs DC: THE LAST TIMELINE
  * Event 1: Round 1 Cyber Investigation Simulation
  * Cases Data Model, Evidence Sets, Questions, Hints, and Answer Keys
@@ -151,7 +200,7 @@ window.INVESTIGATION_DATA = {
             "00:19:12 (File alteration)",
             "00:21:06 (Account logout)"
           ],
-          correct: "00:19:12 (File alteration)",
+          authHash: "MDAlM0ExOSUzQTEyJTIwKEZpbGUlMjBhbHRlcmF0aW9uKQ==",
           hints: [
             "Category Hint: Review the DEVICE RECORDS tab specifically for non-standard activity during the session.",
             "Narrowing Hint: Look for the record where a completely new device suddenly performs a file write operation.",
@@ -170,7 +219,7 @@ window.INVESTIGATION_DATA = {
             "CCTV-04",
             "Gateway Router G-01"
           ],
-          correct: "Remote Admin Device R-07",
+          authHash: "UmVtb3RlJTIwQWRtaW4lMjBEZXZpY2UlMjBSLTA3",
           hints: [
             "Category Hint: Inspect the Device column of the suspicious timestamp identified in Question 1.",
             "Narrowing Hint: It is an external/remote apparatus, not the primary Control Room terminal.",
@@ -189,7 +238,7 @@ window.INVESTIGATION_DATA = {
             "The CCTV camera had completely run out of system storage memory",
             "The user typed their password with an incorrect capitalization pattern"
           ],
-          correct: "The record conflicts with the preceding access/device sequence and injects an external device into a local session",
+          authHash: "VGhlJTIwcmVjb3JkJTIwY29uZmxpY3RzJTIwd2l0aCUyMHRoZSUyMHByZWNlZGluZyUyMGFjY2VzcyUyRmRldmljZSUyMHNlcXVlbmNlJTIwYW5kJTIwaW5qZWN0cyUyMGFuJTIwZXh0ZXJuYWwlMjBkZXZpY2UlMjBpbnRvJTIwYSUyMGxvY2FsJTIwc2Vzc2lvbg==",
           hints: [
             "Category Hint: Compare the device type and IP tunnel of this event against the initial login event.",
             "Narrowing Hint: Why would a physical terminal login suddenly execute a write command via a remote IP tunnel?",
@@ -206,7 +255,7 @@ window.INVESTIGATION_DATA = {
             "Logged-in terminal (Nexus Terminal N-04)",
             "Remote device (Remote Admin Device R-07)"
           ],
-          correct: "Remote device (Remote Admin Device R-07)",
+          authHash: "UmVtb3RlJTIwZGV2aWNlJTIwKFJlbW90ZSUyMEFkbWluJTIwRGV2aWNlJTIwUi0wNyk=",
           hints: [
             "Category Hint: Look at which machine actually initiated and performed the unauthorized data modification.",
             "Narrowing Hint: Terminal N-04 provided the valid account session, but the attack payload originated elsewhere.",
@@ -220,7 +269,7 @@ window.INVESTIGATION_DATA = {
           type: "text",
           placeholder: "e.g. The legitimate terminal access was hijacked/exploited by a remote admin device to alter the incident record.",
           points: 2,
-          keywords: ["remote", "alter", "device", "terminal", "session", "hijack", "exploit", "unauthorized", "r-07", "n-04", "account"],
+          kwTokens: ["cmVtb3Rl", "YWx0ZXI=", "ZGV2aWNl", "dGVybWluYWw=", "c2Vzc2lvbg==", "aGlqYWNr", "ZXhwbG9pdA==", "dW5hdXRob3JpemVk", "ci0wNw==", "bi0wNA==", "YWNjb3VudA=="],
           hints: [
             "Category Hint: Synthesize the relationship between Terminal N-04's login and Device R-07's alteration.",
             "Narrowing Hint: Your sentence must mention that the logged-in session was exploited or bridged by the remote device.",
@@ -327,7 +376,7 @@ window.INVESTIGATION_DATA = {
             "EV-03 (Incident Message // Comms Daemon)",
             "EV-04 (Location Report // Sensor Grid)"
           ],
-          correct: "EV-03 (Incident Message // Comms Daemon)",
+          authHash: "RVYtMDMlMjAoSW5jaWRlbnQlMjBNZXNzYWdlJTIwJTJGJTJGJTIwQ29tbXMlMjBEYWVtb24p",
           hints: [
             "Category Hint: Inspect the explanation and timing of the system broadcast message.",
             "Narrowing Hint: Look at which item cites a 'routine maintenance schedule' that contradicts facility operating hours.",
@@ -346,7 +395,7 @@ window.INVESTIGATION_DATA = {
             "EV-03 (Incident Message // Comms Daemon)",
             "EV-04 (Location Report // Sensor Grid)"
           ],
-          correct: "EV-02 (Security Screenshot // Terminal N-04)",
+          authHash: "RVYtMDIlMjAoU2VjdXJpdHklMjBTY3JlZW5zaG90JTIwJTJGJTJGJTIwVGVybWluYWwlMjBOLTA0KQ==",
           hints: [
             "Category Hint: Compare the screenshot's on-screen claim against what the cameras and floor sensors recorded.",
             "Narrowing Hint: The screenshot asserts someone was physically present right at the console.",
@@ -366,10 +415,7 @@ window.INVESTIGATION_DATA = {
             "EV-03 (Comms notice regarding camera)",
             "EV-04 (Biometric telemetry showing 0.0 kg weight)"
           ],
-          correct: [
-            "EV-01 (CCTV Frame showing empty room)",
-            "EV-02 (Screenshot asserting in-person physical presence)"
-          ],
+          authHash: "RVYtMDElMjAoQ0NUViUyMEZyYW1lJTIwc2hvd2luZyUyMGVtcHR5JTIwcm9vbSk=::RVYtMDIlMjAoU2NyZWVuc2hvdCUyMGFzc2VydGluZyUyMGluLXBlcnNvbiUyMHBoeXNpY2FsJTIwcHJlc2VuY2Up",
           hints: [
             "Category Hint: Find the two items describing the exact same room at 00:19:12 with opposite physical conditions.",
             "Narrowing Hint: One shows an empty chair while the other claims an authorized human was actively standing there.",
@@ -388,10 +434,7 @@ window.INVESTIGATION_DATA = {
             "EV-03 (Incident Message)",
             "EV-04 (Location Report)"
           ],
-          correct: [
-            "EV-02 (Security Screenshot)",
-            "EV-03 (Incident Message)"
-          ],
+          authHash: "RVYtMDIlMjAoU2VjdXJpdHklMjBTY3JlZW5zaG90KQ==::RVYtMDMlMjAoSW5jaWRlbnQlMjBNZXNzYWdlKQ==",
           hints: [
             "Category Hint: Check which items were fabricated to support the false narrative of legitimate in-person access.",
             "Narrowing Hint: The screenshot fabricated in-person presence, and the message fabricated a maintenance excuse.",
@@ -410,7 +453,7 @@ window.INVESTIGATION_DATA = {
             "The file hash contains more lowercase letters than usual",
             "The camera lens resolution is slightly lower than 4K"
           ],
-          correct: "Direct objective contradiction between biometric sensor telemetry/CCTV (empty room) and the screenshot record claiming in-person operator presence",
+          authHash: "RGlyZWN0JTIwb2JqZWN0aXZlJTIwY29udHJhZGljdGlvbiUyMGJldHdlZW4lMjBiaW9tZXRyaWMlMjBzZW5zb3IlMjB0ZWxlbWV0cnklMkZDQ1RWJTIwKGVtcHR5JTIwcm9vbSklMjBhbmQlMjB0aGUlMjBzY3JlZW5zaG90JTIwcmVjb3JkJTIwY2xhaW1pbmclMjBpbi1wZXJzb24lMjBvcGVyYXRvciUyMHByZXNlbmNl",
           hints: [
             "Category Hint: Remember the rule: simulation rules require objective contradiction, not subjective guesswork.",
             "Narrowing Hint: Reject vague aesthetic answers. Look for hard factual contradictions between independent systems.",
@@ -529,7 +572,7 @@ window.INVESTIGATION_DATA = {
             "STARK-01",
             "ROOT-SYS"
           ],
-          correct: "VICTOR-07",
+          authHash: "VklDVE9SLTA3",
           hints: [
             "Category Hint: Review the 01. LOGIN STAGE node details.",
             "Narrowing Hint: The account belongs to the Nexus Lead Scientist.",
@@ -548,7 +591,7 @@ window.INVESTIGATION_DATA = {
             "CCTV-04",
             "Security Hub SH-02"
           ],
-          correct: "Remote Admin Device R-07",
+          authHash: "UmVtb3RlJTIwQWRtaW4lMjBEZXZpY2UlMjBSLTA3",
           hints: [
             "Category Hint: Inspect the 02. DEVICE STAGE node.",
             "Narrowing Hint: The modification did not come from the physical terminal.",
@@ -567,7 +610,7 @@ window.INVESTIGATION_DATA = {
             "Nexus_Kernel.sys",
             "Access_Policy_01"
           ],
-          correct: "Incident_Record_07",
+          authHash: "SW5jaWRlbnRfUmVjb3JkXzA3",
           hints: [
             "Category Hint: Inspect the 03. FILE STAGE node.",
             "Narrowing Hint: It contains the record numbered 07.",
@@ -587,7 +630,7 @@ window.INVESTIGATION_DATA = {
             "USER stage",
             "LOCATION stage"
           ],
-          correct: "DEVICE stage",
+          authHash: "REVWSUNFJTIwc3RhZ2U=",
           hints: [
             "Category Hint: Where in the progression from LOGIN → DEVICE → FILE does the first contradiction occur?",
             "Narrowing Hint: The LOGIN credentials were valid, but the execution hardware diverted.",
@@ -606,7 +649,7 @@ window.INVESTIGATION_DATA = {
             "The security gateway daemon",
             "The facility surveillance coordinator"
           ],
-          correct: "The legitimate account owner (VICTOR-07 / Doctor Doom)",
+          authHash: "VGhlJTIwbGVnaXRpbWF0ZSUyMGFjY291bnQlMjBvd25lciUyMChWSUNUT1ItMDclMjAlMkYlMjBEb2N0b3IlMjBEb29tKQ==",
           hints: [
             "Category Hint: Read the intended conclusion in the case briefing.",
             "Narrowing Hint: Merely having one's account stolen or framed does not prove guilt.",
