@@ -90,6 +90,22 @@ class AdminConsole {
     }
     this.logAction("CASE_RESET", `Reset Investigation 0${caseIndex} for ${teamId}.`);
 
+    const teamKey = "nexus_team_state_" + encodeURIComponent(teamId);
+    const saved = localStorage.getItem(teamKey);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.caseState && parsed.caseState[caseIndex - 1]) {
+          parsed.caseState[caseIndex - 1].answers = {};
+          parsed.caseState[caseIndex - 1].completed = false;
+          parsed.caseState[caseIndex - 1].feedback = null;
+          parsed.caseScores[caseIndex - 1] = 0;
+          parsed.score = (parsed.caseScores[0] || 0) + (parsed.caseScores[1] || 0) + (parsed.caseScores[2] || 0);
+          localStorage.setItem(teamKey, JSON.stringify(parsed));
+        }
+      } catch(e) {}
+    }
+
     if (window.app && window.app.state.teamId === teamId) {
       window.app.state.caseState[caseIndex - 1].answers = {};
       window.app.state.caseState[caseIndex - 1].completed = false;

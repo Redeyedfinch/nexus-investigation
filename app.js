@@ -67,6 +67,39 @@ class SimulationApp {
 
   saveState() {
     localStorage.setItem("nexus_sim_state", JSON.stringify(this.state));
+    if (this.state && this.state.teamId) {
+      const teamKey = "nexus_team_state_" + encodeURIComponent(this.state.teamId);
+      localStorage.setItem(teamKey, JSON.stringify(this.state));
+    }
+  }
+
+  loadTeamState(teamId, accessCode) {
+    const teamKey = "nexus_team_state_" + encodeURIComponent(teamId);
+    const saved = localStorage.getItem(teamKey);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.caseState) {
+          if (accessCode) parsed.accessCode = accessCode;
+          return parsed;
+        }
+      } catch(e) {}
+    }
+    return {
+      currentScreen: "dashboard",
+      teamId: teamId,
+      accessCode: accessCode || "NEXUS-CODE",
+      timerSeconds: 45 * 60,
+      timerRunning: false,
+      currentCase: 0,
+      score: 0,
+      caseScores: [0, 0, 0],
+      caseState: [
+        { unlocked: true, completed: false, answers: {}, feedback: null, hintsRevealed: [0, 0, 0, 0, 0], markedRows: [] },
+        { unlocked: false, completed: false, answers: {}, feedback: null, hintsRevealed: [0, 0, 0, 0, 0], bins: { verified: [], questionable: [] }, whyText: "" },
+        { unlocked: false, completed: false, answers: {}, feedback: null, hintsRevealed: [0, 0, 0, 0, 0], activeNodes: [], trailLinks: [] }
+      ]
+    };
   }
 
   /* ---------------- Sound FX (Web Audio API) ---------------- */
@@ -282,8 +315,15 @@ class SimulationApp {
 
         if (errorMsg) errorMsg.style.display = "none";
 
-        this.state.teamId = teamInput.toUpperCase();
-        this.state.accessCode = codeInput.toUpperCase();
+        const newTeamId = teamInput.toUpperCase();
+        const newAccessCode = codeInput.toUpperCase();
+
+        if (this.state.teamId !== newTeamId) {
+          this.saveState();
+          this.state = this.loadTeamState(newTeamId, newAccessCode);
+        } else {
+          this.state.accessCode = newAccessCode;
+        }
 
         // Auto-register team in admin leaderboard if new
         if (window.admin && Array.isArray(window.admin.teams)) {
