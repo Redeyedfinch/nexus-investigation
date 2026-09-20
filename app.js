@@ -1914,19 +1914,32 @@ class SimulationApp {
       contentHtml = `
         <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
           <div style="font-family: var(--font-mono); font-size: 12px; color: var(--nexus-purple); font-weight: 700;">
-            ORGANISER MASTER TERMINAL // LIVE LEADERBOARD & TIMER CONTROLS
+            ORGANISER MASTER TERMINAL // LIVE LEADERBOARD &amp; ROSTER MANAGEMENT
           </div>
-          <div style="display: flex; gap: 8px;">
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
             <button class="btn btn-secondary" id="btn-admin-timer-toggle">
               ${this.state.timerRunning ? 'PAUSE TIMER' : 'RESUME TIMER'}
             </button>
             <button class="btn btn-secondary" id="btn-admin-add-time">
               +5 MINS
             </button>
+            <button class="btn btn-secondary" id="btn-admin-reset-all-master" style="color: var(--crimson-red); border-color: rgba(229,72,77,0.4); font-size: 10.5px;">
+              RESET ALL TEAMS
+            </button>
             <button class="btn btn-primary" id="btn-admin-export-csv">
               EXPORT SCORES CSV
             </button>
           </div>
+        </div>
+
+        <!-- Add Team Bar -->
+        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-line); border-radius: 4px; padding: 10px 14px; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <span style="font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--text-highlight);">+ REGISTER NEW TEAM:</span>
+          <input type="text" id="admin-new-team-id" class="q-text-input" placeholder="Team ID (e.g. TEAM 08)" style="width: 150px; padding: 6px 10px; font-size: 11.5px;">
+          <input type="text" id="admin-new-team-code" class="q-text-input" placeholder="Access Code (e.g. NEXUS-2026)" style="width: 180px; padding: 6px 10px; font-size: 11.5px;">
+          <button class="btn btn-nexus" id="btn-admin-add-team" style="padding: 6px 14px; font-size: 11px;">
+            ADD TEAM
+          </button>
         </div>
 
         <!-- Teams Table -->
@@ -1939,7 +1952,7 @@ class SimulationApp {
               <th>C2</th>
               <th>C3</th>
               <th>Total Score</th>
-              <th>Actions</th>
+              <th style="text-align: right;">Team Management &amp; Controls</th>
             </tr>
           </thead>
           <tbody>
@@ -1951,11 +1964,13 @@ class SimulationApp {
                 <td>${t.case2 || 0}/10</td>
                 <td>${t.case3 || 0}/10</td>
                 <td style="color: var(--cold-blue); font-weight: 700;">${t.score} / 30</td>
-                <td>
-                  <button class="btn btn-secondary btn-admin-action" data-action="add-pts" data-team="${t.id}" style="padding: 3px 8px; font-size: 10px;">+2 PTS</button>
-                  <button class="btn btn-secondary btn-admin-action" data-action="sub-pts" data-team="${t.id}" style="padding: 3px 8px; font-size: 10px;">-2 PTS</button>
-                  <button class="btn btn-secondary btn-admin-action" data-action="reset" data-team="${t.id}" style="padding: 3px 8px; font-size: 10px;">RESET</button>
-                  <button class="btn btn-secondary btn-admin-action" data-action="unlock" data-team="${t.id}" style="padding: 3px 8px; font-size: 10px;">UNLOCK NEXT</button>
+                <td style="text-align: right;">
+                  <button class="btn btn-secondary btn-admin-action" data-action="add-pts" data-team="${t.id}" style="padding: 3px 6px; font-size: 10px;" title="Add 2 bonus points">+2</button>
+                  <button class="btn btn-secondary btn-admin-action" data-action="sub-pts" data-team="${t.id}" style="padding: 3px 6px; font-size: 10px;" title="Deduct 2 points">-2</button>
+                  <button class="btn btn-secondary btn-admin-action" data-action="unlock" data-team="${t.id}" style="padding: 3px 6px; font-size: 10px;" title="Force unlock next investigation">UNLOCK</button>
+                  <button class="btn btn-secondary btn-admin-action" data-action="reset" data-team="${t.id}" style="padding: 3px 6px; font-size: 10px;" title="Reset current active case">RESET CASE</button>
+                  <button class="btn btn-secondary btn-admin-action" data-action="full-reset" data-team="${t.id}" style="padding: 3px 6px; font-size: 10px; color: var(--electric-yellow); border-color: rgba(255,212,59,0.4);" title="Full reset of all 3 cases and scores">FULL RESET</button>
+                  <button class="btn btn-secondary btn-admin-action" data-action="delete" data-team="${t.id}" style="padding: 3px 6px; font-size: 10px; color: var(--crimson-red); border-color: rgba(229,72,77,0.4);" title="Permanently delete team from competition">DELETE</button>
                 </td>
               </tr>
             `).join('')}
@@ -2153,12 +2168,44 @@ class SimulationApp {
             if (confirm(`Reset Investigation 0${currentCaseNum} for ${teamId}?`)) {
               window.admin.resetTeamCase(teamId, currentCaseNum);
             }
+          } else if (action === 'full-reset') {
+            if (confirm(`FULL RESET FOR ${teamId}:\n\nReset all 3 cases back to 0 points, clear saved answers, and unlock Case 1 for ${teamId}?`)) {
+              window.admin.resetEntireTeam(teamId);
+            }
+          } else if (action === 'delete') {
+            if (confirm(`PERMANENTLY DELETE ${teamId}?\n\nThis will remove ${teamId} from the competition roster and wipe all recorded submissions. Proceed?`)) {
+              window.admin.deleteTeam(teamId);
+            }
           } else if (action === 'unlock') {
             window.admin.forceUnlockNext(teamId);
           }
           this.renderAdminConsoleContent();
         });
       });
+
+      const btnAddTeam = document.getElementById("btn-admin-add-team");
+      if (btnAddTeam) {
+        btnAddTeam.addEventListener("click", () => {
+          const teamIdInput = document.getElementById("admin-new-team-id");
+          const teamCodeInput = document.getElementById("admin-new-team-code");
+          if (teamIdInput && teamIdInput.value.trim()) {
+            window.admin.addTeam(teamIdInput.value.trim(), teamCodeInput ? teamCodeInput.value.trim() : "");
+            this.renderAdminConsoleContent();
+          } else {
+            alert("Please enter a valid Team Identifier.");
+          }
+        });
+      }
+
+      const btnMasterReset = document.getElementById("btn-admin-reset-all-master");
+      if (btnMasterReset) {
+        btnMasterReset.addEventListener("click", () => {
+          if (confirm("ORGANISER MASTER RESET:\n\nAre you sure you want to reset ALL teams' scores and cases back to zero?")) {
+            window.admin.resetAllTeams();
+            this.renderAdminConsoleContent();
+          }
+        });
+      }
 
       const btnCsv = document.getElementById("btn-admin-export-csv");
       if (btnCsv) btnCsv.addEventListener("click", () => window.admin.exportCSV());

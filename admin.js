@@ -140,6 +140,147 @@ class AdminConsole {
     return true;
   }
 
+  deleteTeam(teamId) {
+    const idx = this.teams.findIndex(t => t.id === teamId);
+    if (idx === -1) return false;
+
+    this.teams.splice(idx, 1);
+    this.saveTeams();
+
+    // Purge team-scoped state from localStorage
+    const teamKey = "nexus_team_state_" + encodeURIComponent(teamId);
+    localStorage.removeItem(teamKey);
+
+    // Purge recorded responses
+    this.teamResponses = this.teamResponses.filter(r => r.teamId !== teamId);
+    this.saveTeamResponses();
+
+    this.logAction("TEAM_DELETED", `Organiser permanently removed team: ${teamId}.`);
+
+    // If current client is this team, switch to first available or default
+    if (window.app && window.app.state.teamId === teamId) {
+      const fallbackTeam = this.teams[0] ? this.teams[0].id : "TEAM 01";
+      window.app.state = window.app.loadTeamState(fallbackTeam, "NEXUS-2026");
+      window.app.saveState();
+      window.app.renderCurrentCase();
+      window.app.updateUI();
+    }
+    return true;
+  }
+
+  resetEntireTeam(teamId) {
+    const team = this.teams.find(t => t.id === teamId);
+    if (team) {
+      team.case1 = 0;
+      team.case2 = 0;
+      team.case3 = 0;
+      team.score = 0;
+      team.currentCase = 1;
+      team.timerStatus = "Active";
+      team.lastActive = "Reset just now";
+      this.saveTeams();
+    }
+
+    // Reset team-scoped state in localStorage
+    const teamKey = "nexus_team_state_" + encodeURIComponent(teamId);
+    const cleanState = {
+      currentScreen: "dashboard",
+      teamId: teamId,
+      accessCode: (team && team.accessCode) || "NEXUS-CODE",
+      timerSeconds: 45 * 60,
+      timerRunning: false,
+      currentCase: 0,
+      score: 0,
+      caseScores: [0, 0, 0],
+      caseState: [
+        { unlocked: true, completed: false, answers: {}, feedback: null, hintsRevealed: [0, 0, 0, 0, 0], markedRows: [] },
+        { unlocked: false, completed: false, answers: {}, feedback: null, hintsRevealed: [0, 0, 0, 0, 0], bins: { verified: [], questionable: [] }, whyText: "" },
+        { unlocked: false, completed: false, answers: {}, feedback: null, hintsRevealed: [0, 0, 0, 0, 0], activeNodes: [], trailLinks: [] }
+      ]
+    };
+    localStorage.setItem(teamKey, JSON.stringify(cleanState));
+
+    // Remove recorded submissions for this team
+    this.teamResponses = this.teamResponses.filter(r => r.teamId !== teamId);
+    this.saveTeamResponses();
+
+    this.logAction("TEAM_FULL_RESET", `Complete session & score reset performed for ${teamId}.`);
+
+    // Sync live app if current client is this team
+    if (window.app && window.app.state.teamId === teamId) {
+      window.app.state = cleanState;
+      window.app.saveState();
+      window.app.renderCurrentCase();
+      window.app.updateUI();
+    }
+    return true;
+  }
+
+  addTeam(teamId, accessCode) {
+    const cleanId = (teamId || "").trim().toUpperCase();
+    const cleanCode = (accessCode || "").trim().toUpperCase() || "NEXUS-2026";
+    if (!cleanId) return false;
+
+    if (this.teams.some(t => t.id === cleanId)) {
+      alert(`Team ${cleanId} already exists in the roster.`);
+      return false;
+    }
+
+    const newTeam = {
+      id: cleanId,
+      accessCode: cleanCode,
+      currentCase: 1,
+      score: 0,
+      timerStatus: "Active",
+      lastActive: "Registered",
+      case1: 0,
+      case2: 0,
+      case3: 0
+    };
+    this.teams.push(newTeam);
+    this.saveTeams();
+    this.logAction("TEAM_CREATED", `Registered new team: ${cleanId}.`);
+    return true;
+  }
+
+  resetAllTeams() {
+    this.teams.forEach(t => {
+      t.case1 = 0;
+      t.case2 = 0;
+      t.case3 = 0;
+      t.score = 0;
+      t.currentCase = 1;
+      t.timerStatus = "Active";
+      t.lastActive = "All reset";
+
+      const teamKey = "nexus_team_state_" + encodeURIComponent(t.id);
+      localStorage.removeItem(teamKey);
+    });
+    this.saveTeams();
+
+    this.teamResponses = [];
+    this.saveTeamResponses();
+
+    if (window.app) {
+      window.app.state.caseScores = [0, 0, 0];
+      window.app.state.score = 0;
+      window.app.state.currentCase = 0;
+      window.app.state.timerSeconds = 45 * 60;
+      window.app.state.timerRunning = false;
+      window.app.state.caseState = [
+        { unlocked: true, completed: false, answers: {}, feedback: null, hintsRevealed: [0, 0, 0, 0, 0], markedRows: [] },
+        { unlocked: false, completed: false, answers: {}, feedback: null, hintsRevealed: [0, 0, 0, 0, 0], bins: { verified: [], questionable: [] }, whyText: "" },
+        { unlocked: false, completed: false, answers: {}, feedback: null, hintsRevealed: [0, 0, 0, 0, 0], activeNodes: [], trailLinks: [] }
+      ];
+      window.app.saveState();
+      window.app.renderCurrentCase();
+      window.app.updateUI();
+    }
+
+    this.logAction("ALL_TEAMS_RESET", "Master reset performed across all competition teams.");
+    return true;
+  }
+
   loadTeamResponses() {
     const saved = localStorage.getItem("nexus_admin_responses");
     if (saved) {
