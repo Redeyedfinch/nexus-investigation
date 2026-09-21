@@ -372,6 +372,76 @@ class SimulationApp {
       });
     }
 
+    // Mobile Tools Drawer Toggle
+    const mobileMenuToggle = document.getElementById("btn-mobile-menu-toggle");
+    const mobileToolsDrawer = document.getElementById("mobile-tools-drawer");
+    if (mobileMenuToggle && mobileToolsDrawer) {
+      mobileMenuToggle.addEventListener("click", (e) => {
+        e.stopPropagation();
+        mobileToolsDrawer.classList.toggle("open");
+        mobileMenuToggle.classList.toggle("active", mobileToolsDrawer.classList.contains("open"));
+      });
+      // Close mobile drawer when clicking outside
+      document.addEventListener("click", (e) => {
+        if (!mobileToolsDrawer.contains(e.target) && !mobileMenuToggle.contains(e.target)) {
+          mobileToolsDrawer.classList.remove("open");
+          mobileMenuToggle.classList.remove("active");
+        }
+      });
+    }
+
+    // Mobile Drawer Actions
+    const mobileBtnShell = document.getElementById("mobile-btn-shell");
+    if (mobileBtnShell) {
+      mobileBtnShell.addEventListener("click", () => {
+        if (mobileToolsDrawer) {
+          mobileToolsDrawer.classList.remove("open");
+          if (mobileMenuToggle) mobileMenuToggle.classList.remove("active");
+        }
+        this.toggleForensicShell();
+      });
+    }
+
+    const mobileBtnAudio = document.getElementById("mobile-btn-audio");
+    if (mobileBtnAudio) {
+      mobileBtnAudio.addEventListener("click", () => {
+        this.audioMuted = !this.audioMuted;
+        const label = this.audioMuted ? "SFX: MUTED" : "SFX: ON";
+        mobileBtnAudio.textContent = label;
+        const desktopAudio = document.getElementById("btn-toggle-audio");
+        if (desktopAudio) {
+          desktopAudio.textContent = label;
+          desktopAudio.classList.toggle("off", this.audioMuted);
+        }
+      });
+    }
+
+    const mobileBtnLogout = document.getElementById("mobile-btn-logout");
+    if (mobileBtnLogout) {
+      mobileBtnLogout.addEventListener("click", () => {
+        if (mobileToolsDrawer) {
+          mobileToolsDrawer.classList.remove("open");
+          if (mobileMenuToggle) mobileMenuToggle.classList.remove("active");
+        }
+        const confirmed = confirm("Switch team or return to login screen? Your case progress will remain saved.");
+        if (confirmed) {
+          this.playSound('click');
+          this.switchScreen("login");
+        }
+      });
+    }
+
+    // Mobile Segmented Viewport Switcher Tabs
+    const mobileTabButtons = document.querySelectorAll(".mobile-tab-btn");
+    if (mobileTabButtons.length) {
+      mobileTabButtons.forEach(btn => {
+        btn.addEventListener("click", () => {
+          const targetTab = btn.dataset.tab;
+          if (targetTab) this.setMobileTab(targetTab);
+        });
+      });
+    }
+
     // Dashboard Begin Button
     const btnBegin = document.getElementById("btn-begin-investigation");
     if (btnBegin) {
@@ -389,8 +459,10 @@ class SimulationApp {
     if (audioToggle) {
       audioToggle.addEventListener("click", () => {
         this.audioMuted = !this.audioMuted;
-        audioToggle.textContent = this.audioMuted ? "SFX: MUTED" : "SFX: ON";
+        const label = this.audioMuted ? "SFX: MUTED" : "SFX: ON";
+        audioToggle.textContent = label;
         audioToggle.classList.toggle("off", this.audioMuted);
+        if (mobileBtnAudio) mobileBtnAudio.textContent = label;
       });
     }
 
@@ -593,6 +665,9 @@ class SimulationApp {
 
     // Update Bottom Bar buttons
     this.updateBottomBar();
+
+    // Default mobile tab to workspace
+    this.setMobileTab("workspace", false);
   }
 
   /* ---------------- CASE 01: THE BREACH REPORT ---------------- */
@@ -1782,9 +1857,31 @@ class SimulationApp {
     }
   }
 
+  setMobileTab(tab, playSnd = true) {
+    const investigationBody = document.getElementById("investigation-body");
+    const mobileTabButtons = document.querySelectorAll(".mobile-tab-btn");
+    if (!investigationBody) return;
+
+    investigationBody.classList.remove("mobile-show-workspace", "mobile-show-intel", "mobile-show-stages");
+    investigationBody.classList.add(`mobile-show-${tab}`);
+
+    mobileTabButtons.forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.tab === tab);
+    });
+
+    if (playSnd) this.playSound('click');
+  }
+
   updateUI() {
     this.updateDashboardUI();
     this.updateTimerDisplay();
+    const mobTeam = document.getElementById("mobile-team-display");
+    if (mobTeam) mobTeam.textContent = this.state.teamId;
+    const mobThreat = document.getElementById("mobile-threat-badge");
+    if (mobThreat) {
+      const activeCase = this.state.currentCase + 1;
+      mobThreat.innerHTML = `<span class="threat-dot"></span><span>STG 0${activeCase} ACTIVE</span>`;
+    }
   }
 
   /* ---------------- Modals (Fullscreen, Comparison, Admin) ---------------- */

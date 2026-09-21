@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>NEXUS DFIR // Incident Investigation Platform — Round 1</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -161,8 +161,8 @@
             45:00
           </div>
 
-          <!-- Utility Controls -->
-          <div style="display: flex; gap: 6px;">
+          <!-- Utility Controls (Desktop) -->
+          <div class="desktop-utility-controls" style="display: flex; gap: 6px;">
             <button class="btn btn-secondary" id="btn-toggle-shell" style="padding: 6px 10px; font-size: 10.5px;" title="Open Forensic Telemetry Console (Ctrl + ~)">
               &gt;_ CONSOLE
             </button>
@@ -173,11 +173,59 @@
               SIGN OUT
             </button>
           </div>
+
+          <!-- Mobile Tools Toggle Button -->
+          <button class="btn btn-secondary mobile-only-btn" id="btn-mobile-menu-toggle" aria-label="Toggle Mobile Controls">
+            <span class="mobile-menu-icon">☰</span>
+          </button>
         </div>
       </header>
 
+      <!-- Mobile Tools Dropdown Drawer -->
+      <div class="mobile-tools-drawer" id="mobile-tools-drawer">
+        <div class="mobile-tools-content">
+          <div class="mobile-tool-info-row">
+            <div class="mobile-tool-badge">
+              <span class="mobile-tool-lbl">UNIT:</span>
+              <strong id="mobile-team-display">TEAM 07</strong>
+            </div>
+            <div class="threat-level-badge" id="mobile-threat-badge">
+              <span class="threat-dot"></span>
+              <span>SEV-1 ACTIVE</span>
+            </div>
+          </div>
+          <div class="mobile-tool-actions">
+            <button class="btn btn-secondary mobile-action-btn" id="mobile-btn-shell">
+              &gt;_ FORENSIC CONSOLE
+            </button>
+            <button class="btn btn-secondary mobile-action-btn" id="mobile-btn-audio">
+              AUDIO: ON
+            </button>
+            <button class="btn btn-secondary mobile-action-btn" id="mobile-btn-logout">
+              SIGN OUT
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Main Layout Body -->
-      <div class="investigation-body">
+      <div class="investigation-body" id="investigation-body">
+        <!-- Mobile Segmented Viewport Switcher -->
+        <nav class="mobile-nav-switcher" id="mobile-nav-switcher" aria-label="Investigation View Switcher">
+          <button class="mobile-tab-btn active" data-tab="workspace" id="tab-btn-workspace">
+            <span class="tab-icon">🔍</span>
+            <span class="tab-text">WORKSPACE &amp; QUESTIONS</span>
+          </button>
+          <button class="mobile-tab-btn" data-tab="intel" id="tab-btn-intel">
+            <span class="tab-icon">💡</span>
+            <span class="tab-text">INTEL &amp; CLUES</span>
+          </button>
+          <button class="mobile-tab-btn" data-tab="stages" id="tab-btn-stages">
+            <span class="tab-icon">📂</span>
+            <span class="tab-text">STAGES</span>
+          </button>
+        </nav>
+
         <!-- Left Rail: Investigation Stages Sequence -->
         <aside class="left-rail">
           <div class="rail-section-title">INVESTIGATION STAGES</div>
